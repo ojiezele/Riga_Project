@@ -171,5 +171,7 @@ window.TableControl = TableControl;
 
 window.CustomRangeControl = CustomRangeControl;
 
-import ejs from 'ejs-browser';
+import ejs from 'ejs';
 window.ejs = ejs;
+
+export default Builder;

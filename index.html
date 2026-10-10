@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riga Project</title>
+    <link rel="stylesheet" href="/builder.css">
+</head>
+<body>
+    <div id="widgets-container"></div>
+    <div id="builder-container"></div>
+    <div id="settings-container"></div>
+    
+    <script type="module">
+        import Builder from '/builder.js';
+        
+        window.addEventListener('load', () => {
+            const builder = new window.Builder({
+                mainContainer: '#builder-container',
+                settingsContainer: '#settings-container',
+                widgetsContainer: '#widgets-container'
+            });
+            
+            // Assuming there is some initial data or a way to load a theme
+            // Since I don't have theme data, this might need more work
+            console.log("Builder initialized:", builder);
+        });
+    </script>
+</body>
+</html>
