@@ -321,75 +321,71 @@ class BaseElement {
         if (!this.actionsBox) {
             this.actionsBox = document.createElement('div');
             this.actionsBox.classList.add('actions-box');
-            this.actionsBox.classList.add('d-flex');
-            this.actionsBox.classList.add('align-items-center');
-            // Append it to the body
             document.body.appendChild(this.actionsBox);
-            // 
+
             this.matchingDomNode(this.actionsBox, () => {
-                if (!this.actionsBox) {
+                if (!this.actionsBox || !this.domNode || !this.domNode.ownerDocument) {
                     return;
                 }
 
-                // Get the bounding rect of the domNode inside the iframe
                 const domRect = this.domNode.getBoundingClientRect();
+                const iframe = this.domNode.ownerDocument.defaultView?.frameElement;
+                if (!iframe) return;
 
-                // Get the iframe element that contains the domNode
-                const iframe = this.domNode.ownerDocument.defaultView.frameElement;
                 const iframeRect = iframe.getBoundingClientRect();
-
-                // Calculate absolute position of domNode relative to main window
                 const absoluteTop = iframeRect.top + domRect.top;
                 const absoluteLeft = iframeRect.left + domRect.left;
 
-                // Set the hoveringBox's position and size
+                // Position compactly at the top-right of the element, clamped inside viewport
+                const targetLeft = Math.min(
+                    iframeRect.right - 260,
+                    Math.max(iframeRect.left + 16, absoluteLeft + domRect.width - 240)
+                );
+                const targetTop = Math.max(iframeRect.top + 8, absoluteTop - 40);
+
                 Object.assign(this.actionsBox.style, {
                     position: 'fixed',
-                    top: `${absoluteTop - 38}px`,
-                    left: `${absoluteLeft}px`,
-                    width: `${domRect.width}px`,
-                    height: `40px`,
+                    top: `${targetTop}px`,
+                    left: `${targetLeft}px`,
+                    width: 'auto',
+                    height: '36px',
+                    zIndex: '1002',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                 });
             });
 
-            // Label
-            this.actionsBoxLabel = document.createElement('h5');
-            this.actionsBoxLabel.classList.add('ms-2');
-            this.actionsBoxLabel.classList.add('m-0');
-            this.actionsBoxLabel.classList.add('text-light');
-            this.actionsBoxLabel.innerText = this.getClassName();
+            // Compact element class label
+            this.actionsBoxLabel = document.createElement('span');
+            this.actionsBoxLabel.className = 'actions-box-label';
+            this.actionsBoxLabel.innerText = this.getClassName().replace('Element', '');
             this.actionsBox.appendChild(this.actionsBoxLabel);
 
             this.actionsBoxInner = document.createElement('div');
-            this.actionsBoxInner.classList.add('actions-box-inner');
-            this.actionsBoxInner.classList.add('btn-group');
-            this.actionsBoxInner.classList.add('border');
-            this.actionsBoxInner.classList.add('ms-auto');
-            this.actionsBoxInner.classList.add('me-2');
-
-            this.actionsBoxInner = document.createElement('div');
-            this.actionsBoxInner.classList.add('actions-box-inner');
-            this.actionsBoxInner.classList.add('btn-group');
-            // this.actionsBoxInner.classList.add('border');
-            this.actionsBoxInner.classList.add('ms-auto');
-            this.actionsBoxInner.classList.add('me-1');
-            // Append it to the body
+            this.actionsBoxInner.className = 'actions-box-inner flex items-center gap-1';
             this.actionsBox.appendChild(this.actionsBoxInner);
 
+            const svgMap = {
+                content_copy: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+                delete: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>`,
+                arrow_circle_up: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
+                remove_selection: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
+            };
+
             this.getActions().forEach(action => {
-                var actionButton = document.createElement('button');
-                actionButton.setAttribute('class', 'element-action-item btn btn-light p-1 d-flex align-items-center');
+                const actionButton = document.createElement('button');
+                actionButton.setAttribute('type', 'button');
+                actionButton.className = 'element-action-item';
                 actionButton.setAttribute('title', action.label);
-                actionButton.innerHTML = `
-                    <span class="material-symbols-rounded fs-5">`+action.icon+`</span>
-                `;
+                actionButton.innerHTML = svgMap[action.icon] || `<span style="font-size:11px;">${action.label}</span>`;
 
-                this.actionsBoxInner.appendChild(actionButton);
-
-                // events
-                actionButton.addEventListener('click', () => {
+                actionButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     action.run();
                 });
+
+                this.actionsBoxInner.appendChild(actionButton);
             });
         }
 

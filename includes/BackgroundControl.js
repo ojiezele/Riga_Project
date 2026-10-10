@@ -39,7 +39,7 @@ class BackgroundControl {
           <span class="me-2">Color:</span>
           <input type="color" class="form-control form-control-color" id="BgColor_${
             this.id
-          }" value="${this.color}" 
+          }" value="${(this.color && this.color.startsWith('#') && (this.color.length === 7 || this.color.length === 4)) ? this.color : '#ffffff'}" 
             title="Choose a color" style="width: 30px; height:30px;">
         </div>
         <div class="py-2 pe-3 pb-4 d-flex align-items-start">
@@ -428,8 +428,21 @@ class BackgroundControl {
         const formData = new FormData();
         formData.append("file", file);
 
+        const applyBgImage = (url) => {
+          this.image = url;
+          const urlInput = this.domNode.querySelector("#imageUrl_" + this.id);
+          if (urlInput) urlInput.value = this.image;
+          const previewImg = this.domNode.querySelector(".image-preview img");
+          if (previewImg) previewImg.src = this.image;
+          this.updateImageInfo(this.image);
+          if (this.callback && typeof this.callback.setBackground === "function") {
+            this.callback.setBackground(this.getValues());
+          }
+        };
+
         try {
-          const response = await fetch(builder.assetUploadHandler, {
+          const uploadEndpoint = (typeof builder !== "undefined" && builder.assetUploadHandler) ? builder.assetUploadHandler : "/asset-upload.php";
+          const response = await fetch(uploadEndpoint, {
             method: "POST",
             body: formData,
           });
@@ -437,38 +450,19 @@ class BackgroundControl {
           if (response.ok) {
             const result = await response.json();
             if (result.url) {
-              this.image = result.url;
-
-              // Instead of this.render() update only the needed UI elements
-              const urlInput = this.domNode.querySelector(
-                "#imageUrl_" + this.id
-              );
-              if (urlInput) {
-                urlInput.value = this.image;
-              }
-
-              const previewImg =
-                this.domNode.querySelector(".image-preview img");
-              if (previewImg) {
-                previewImg.src = this.image;
-              }
-
-              // Update image information
-              this.updateImageInfo(this.image);
-
-              if (
-                this.callback &&
-                typeof this.callback.setBackground === "function"
-              ) {
-                this.callback.setBackground(this.getValues());
-              }
+              applyBgImage(result.url);
+              return;
             }
-          } else {
-            console.error("Upload failed:", response.statusText);
           }
         } catch (error) {
-          console.error("Error uploading file:", error);
+          console.warn("Background image upload fallback to Data URL:", error);
         }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          applyBgImage(e.target.result);
+        };
+        reader.readAsDataURL(file);
       }
     });
     input.click();

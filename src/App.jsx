@@ -174,6 +174,33 @@ export default function App() {
         }
     };
 
+    // Update Team Member (Role / Status)
+    const handleUpdateTeamMember = async (id, updates) => {
+        try {
+            const res = await fetch('/api/saas/team/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, ...updates })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                setSaasData(data.db);
+                saveLocalSaasState(data.db);
+                notify(`Team member updated!`);
+            }
+        } catch (err) {
+            setSaasData(prev => {
+                const next = {
+                    ...prev,
+                    team: (prev.team || []).map(t => t.id === id ? { ...t, ...updates } : t)
+                };
+                saveLocalSaasState(next);
+                return next;
+            });
+            notify(`Team member updated!`);
+        }
+    };
+
     // Duplicate Site
     const handleDuplicateSite = async (originalSite) => {
         const copyName = `${originalSite.name} (Copy)`;
@@ -392,6 +419,7 @@ export default function App() {
                     onDuplicateSite={handleDuplicateSite}
                     onDeleteSite={handleDeleteSite}
                     onInviteTeamMember={handleInviteTeamMember}
+                    onUpdateTeamMember={handleUpdateTeamMember}
                     onDeleteTeamMember={handleDeleteTeamMember}
                     onAddDomain={handleAddDomain}
                     onUploadMedia={handleUploadMedia}

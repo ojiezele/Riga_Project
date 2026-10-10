@@ -4,6 +4,18 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
+import { 
+    getSaasState as getDbSaasState, 
+    upsertSite as dbUpsertSite, 
+    deleteSite as dbDeleteSite, 
+    insertTeamMember as dbInsertTeamMember, 
+    deleteTeamMember as dbDeleteTeamMember, 
+    insertDomain as dbInsertDomain, 
+    insertMedia as dbInsertMedia, 
+    deleteMedia as dbDeleteMedia, 
+    updateLeadStatus as dbUpdateLeadStatus,
+    updateTeamMember as dbUpdateTeamMember
+} from './src/db/queries.ts';
 
 function backendPlugin() {
     return {
@@ -537,12 +549,77 @@ function backendPlugin() {
                             return;
                         }
 
+                        const reqInstruction = data.request || 'Rewrite formally';
+                        let rewritten = prompt;
+                        if (reqInstruction.includes('Optimize')) {
+                            rewritten = prompt.replace(/\s+/g, ' ').trim() + ' — optimized for high user engagement and conversion.';
+                        } else if (reqInstruction.includes('casually')) {
+                            rewritten = `Hey there! ${prompt} Everything just got way easier and more enjoyable.`;
+                        } else if (reqInstruction.includes('formally')) {
+                            rewritten = `Riga SaaS Enterprise Solutions: ${prompt}. Delivering robust performance, enhanced security, and streamlined scalability.`;
+                        } else {
+                            rewritten = `Enhanced: ${prompt}`;
+                        }
+
                         res.setHeader('Content-Type', 'application/json');
-                        res.end(JSON.stringify({ text: "Generated content: " + prompt }));
+                        res.end(JSON.stringify({ 
+                            text: rewritten,
+                            choices: [
+                                {
+                                    message: {
+                                        content: rewritten
+                                    }
+                                }
+                            ]
+                        }));
                     } catch (err) {
                         res.statusCode = 500;
                         res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify({ error: { message: err.message } }));
+                    }
+                    return;
+                }
+
+                // 8. POST /asset-upload.php (Image asset uploads for builder ImageControl & BackgroundControl)
+                if (url.pathname === '/asset-upload.php' && req.method === 'POST') {
+                    try {
+                        const { buffer } = await getBody();
+                        const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+                        if (!fs.existsSync(uploadsDir)) {
+                            fs.mkdirSync(uploadsDir, { recursive: true });
+                        }
+
+                        let filename = 'asset_' + Date.now() + '.png';
+                        let fileBuffer = buffer;
+
+                        // Check if multipart form data
+                        const contentType = req.headers['content-type'] || '';
+                        if (contentType.includes('multipart/form-data')) {
+                            const headerEnd = buffer.indexOf(Buffer.from('\r\n\r\n'));
+                            if (headerEnd !== -1) {
+                                const headerStr = buffer.slice(0, headerEnd).toString();
+                                const filenameMatch = headerStr.match(/filename="([^"]+)"/i);
+                                if (filenameMatch) {
+                                    const ext = path.extname(filenameMatch[1]) || '.png';
+                                    filename = 'asset_' + Date.now() + ext;
+                                }
+                                const endBoundary = buffer.lastIndexOf(Buffer.from('\r\n--'));
+                                fileBuffer = (endBoundary > headerEnd + 4) 
+                                    ? buffer.slice(headerEnd + 4, endBoundary)
+                                    : buffer.slice(headerEnd + 4);
+                            }
+                        }
+
+                        const targetPath = path.join(uploadsDir, filename);
+                        fs.writeFileSync(targetPath, fileBuffer);
+                        const fileUrl = `/uploads/${filename}`;
+
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'success', url: fileUrl }));
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'error', error: err.message }));
                     }
                     return;
                 }
@@ -582,20 +659,33 @@ function backendPlugin() {
                 };
 
                 if (url.pathname === '/api/saas/state' && req.method === 'GET') {
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify(getSaasDb()));
+                    try {
+                        const state = await getDbSaasState();
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify(state));
+                    } catch (err) {
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify(getSaasDb()));
+                    }
                     return;
                 }
 
                 if (url.pathname === '/api/saas/sites' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbUpsertSite(data);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB upsertSite fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         if (data.id) {
-                            // update
                             db.sites = db.sites.map(s => s.id === data.id ? { ...s, ...data, updated: new Date().toISOString().split('T')[0] } : s);
                         } else {
-                            // create
                             const newSite = {
                                 id: 'site_' + Date.now(),
                                 name: data.name || 'New Website',
@@ -627,6 +717,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/sites/delete' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbDeleteSite(data.id);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB deleteSite fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         db.sites = db.sites.filter(s => s.id !== data.id);
                         saveSaasDb(db);
@@ -642,6 +741,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/team' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbInsertTeamMember(data);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB insertTeamMember fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         const newMember = {
                             id: 't_' + Date.now(),
@@ -664,8 +772,46 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/team/delete' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbDeleteTeamMember(data.id);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB deleteTeamMember fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         db.team = db.team.filter(t => t.id !== data.id);
+                        saveSaasDb(db);
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'success', db }));
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                    return;
+                }
+
+                if (url.pathname === '/api/saas/team/update' && req.method === 'POST') {
+                    try {
+                        const { data } = await getBody();
+                        try {
+                            await dbUpdateTeamMember(data);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB updateTeamMember fallback:', dbErr.message);
+                        }
+                        const db = getSaasDb();
+                        db.team = db.team.map(t => t.id === data.id ? { 
+                            ...t, 
+                            ...(data.role ? { role: data.role } : {}),
+                            ...(data.status ? { status: data.status } : {}),
+                            ...(data.name ? { name: data.name } : {})
+                        } : t);
                         saveSaasDb(db);
                         res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify({ status: 'success', db }));
@@ -679,6 +825,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/media' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbInsertMedia(data);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB insertMedia fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         if (!db.media) db.media = [];
                         const newAsset = {
@@ -705,6 +860,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/media/delete' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbDeleteMedia(data.id);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB deleteMedia fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         if (db.media) {
                             db.media = db.media.filter(m => m.id !== data.id);
@@ -722,6 +886,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/leads/status' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbUpdateLeadStatus(data.id, data.status);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB updateLeadStatus fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         if (db.leads) {
                             db.leads = db.leads.map(l => l.id === data.id ? { ...l, status: data.status } : l);
@@ -739,6 +912,15 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/domains' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        try {
+                            await dbInsertDomain(data);
+                            const state = await getDbSaasState();
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ status: 'success', db: state }));
+                            return;
+                        } catch (dbErr) {
+                            console.warn('DB insertDomain fallback:', dbErr.message);
+                        }
                         const db = getSaasDb();
                         if (!db.domains) db.domains = [];
                         const newDomain = {
@@ -774,5 +956,6 @@ export default defineConfig({
     server: {
         host: '0.0.0.0',
         port: 3000,
+        allowedHosts: true,
     },
 });

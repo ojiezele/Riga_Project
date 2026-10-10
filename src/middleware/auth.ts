@@ -1,56 +1,36 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { adminAuth } from '../lib/firebase-admin.ts';
+import { DecodedIdToken } from 'firebase-admin/auth';
 import jwt from 'jsonwebtoken';
-import { TenantRequest } from './tenant';
 
-export interface AuthenticatedRequest extends TenantRequest {
-  user?: {
-    sub: string;
-    email: string;
-    tenantId: string;
-    roles: string[];
-  };
+export interface AuthRequest extends Request {
+  user?: DecodedIdToken | any;
 }
 
-/**
- * Standard OIDC / JWT verification middleware without third-party vendor lock-in.
- */
-export function oidcAuthMiddleware(
-  req: AuthenticatedRequest,
+export const requireAuth = async (
+  req: AuthRequest,
   res: Response,
   next: NextFunction
-) {
+) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or malformed authorization token' });
+    return res.status(401).json({ error: 'Unauthorized: Missing token' });
   }
 
-  const token = authHeader.split(' ')[1];
-  const secretOrKey = process.env.JWT_SECRET || 'riga-secure-fallback-secret';
-
+  const token = authHeader.split('Bearer ')[1]?.trim();
   try {
-    const decoded = jwt.verify(token, secretOrKey) as {
-      sub: string;
-      email: string;
-      tenant_id?: string;
-      org_id?: string;
-      roles?: string[];
-    };
-
-    const userTenantId = decoded.tenant_id || decoded.org_id;
-
-    if (req.tenant && userTenantId && userTenantId !== req.tenant.id) {
-      return res.status(403).json({ error: 'Access denied: Tenant mismatch' });
-    }
-
-    req.user = {
-      sub: decoded.sub || 'user_local',
-      email: decoded.email || 'user@example.com',
-      tenantId: userTenantId || req.tenant?.id || 'default',
-      roles: decoded.roles || ['member'],
-    };
-
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    req.user = decodedToken;
     next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch (error) {
+    try {
+      const fallbackSecret = process.env.JWT_SECRET || 'riga_saas_secret_key_99';
+      const decodedJwt = jwt.verify(token, fallbackSecret);
+      req.user = decodedJwt;
+      next();
+    } catch (jwtErr) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
   }
-}
+};

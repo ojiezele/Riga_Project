@@ -149,6 +149,9 @@ class RichTextControl {
 
         // Toolbar formatting commands
         this.domNode.querySelectorAll('[data-cmd]').forEach(btn => {
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevent button from stealing focus and losing selection
+            });
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 const cmd = btn.getAttribute('data-cmd');
@@ -277,13 +280,15 @@ class RichTextControl {
             if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
                 return data.choices[0].message.content.trim();
             }
+            if (data.text) {
+                return data.text.trim();
+            }
             return originalText;
         })
-        .catch(() => {
+        .catch((err) => {
+            console.warn('AI service notice:', err);
             if (window.SNotify) {
-                window.SNotify.show('Failed to connect to AI service.', 'error');
-            } else {
-                alert('Failed to connect to AI service. Please try again later.');
+                window.SNotify.show('AI service temporarily unavailable.', 'error');
             }
             return originalText;
         });

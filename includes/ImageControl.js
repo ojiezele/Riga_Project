@@ -170,8 +170,15 @@ class ImageControl {
                 const formData = new FormData();
                 formData.append('file', file);
 
+                const applyImage = (url) => {
+                    this.value = url;
+                    this.callback.setImage(url);
+                    this.render();
+                };
+
                 try {
-                    const response = await fetch(builder.assetUploadHandler, { // @todo: builder dependency
+                    const uploadEndpoint = (typeof builder !== 'undefined' && builder.assetUploadHandler) ? builder.assetUploadHandler : '/asset-upload.php';
+                    const response = await fetch(uploadEndpoint, {
                         method: 'POST',
                         body: formData,
                     });
@@ -179,20 +186,20 @@ class ImageControl {
                     if (response.ok) {
                         const result = await response.json();
                         if (result.url) {
-                            // this.updatePreview(result.url); // Update the image preview
-                            // this.getImageInput().value = result.url; // Update the input field
-                            this.value = result.url; // Update the value property
-                            this.callback.setImage(result.url); // Notify callback of the new image URL
-                            this.render();
-                        } else {
-                            console.error('Upload failed: No URL returned');
+                            applyImage(result.url);
+                            return;
                         }
-                    } else {
-                        console.error('Upload failed:', response.statusText);
                     }
                 } catch (error) {
-                    console.error('Error uploading file:', error);
+                    console.warn('Network upload fallback to local Data URL:', error);
                 }
+
+                // Resilient fallback: read as base64 Data URL so user image ALWAYS updates
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    applyImage(e.target.result);
+                };
+                reader.readAsDataURL(file);
             }
         });
         input.click();

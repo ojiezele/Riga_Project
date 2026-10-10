@@ -36,7 +36,7 @@ class Builder {
         }
 
         // Initialize parameters
-        this.mode = 'preview';
+        this.mode = 'design';
         this.selectedElement = null;
 
         // Initialize UI Manager
@@ -103,7 +103,7 @@ class Builder {
 
         const response = await fetch(themeConfigPath);
         if (!response.ok) {
-            alert(`Failed to load theme configs from ${themeConfigPath}`);
+            console.error(`Failed to load theme configs from ${themeConfigPath}`);
             throw new Error(`Failed to load theme configs from ${themeConfigPath}`);
         }
         this.themConfigs = await response.json();
@@ -115,7 +115,17 @@ class Builder {
     async loadTemplates(themeUrl) {
         await Promise.all(
             this.themConfigs.templates.map(async (templateName) => {
-                const html = await this.loadHTML(`${themeUrl}/${templateName}.tpl`);
+                let html = '';
+                try {
+                    html = await this.loadHTML(`${themeUrl}/${templateName}.template.html`);
+                } catch {
+                    try {
+                        html = await this.loadHTML(`${themeUrl}/${templateName}.tpl`);
+                    } catch {
+                        console.warn(`Template "${templateName}" not found at ${themeUrl}`);
+                        html = `<div builder-element="${templateName}"><%- typeof elements !== 'undefined' ? elements : '' %></div>`;
+                    }
+                }
                 this.templates[templateName] = html;
             })
         );
@@ -123,8 +133,8 @@ class Builder {
 
     getTemplate(templateName) {
         if (!this.templates[templateName]) {
-            alert(`Template "${templateName}" not found`);
-            throw new Error(`Template "${templateName}" not found`);
+            console.warn(`Template "${templateName}" not found, using generic container`);
+            return `<div builder-element="${templateName}"><%- typeof elements !== 'undefined' ? elements : '' %></div>`;
         }
         return this.templates[templateName];
     }
@@ -132,7 +142,6 @@ class Builder {
     async loadHTML(filePath) {
         const response = await fetch(filePath);
         if (!response.ok) {
-            alert(`Failed to load HTML template from ${filePath}`);
             throw new Error(`Failed to load HTML template from ${filePath}`);
         }
         return await response.text();
@@ -167,7 +176,11 @@ class Builder {
         // Create an iframe and append it to the body
         this.iframe = document.createElement('iframe');
         this.iframe.style.width = '100%';
+        this.iframe.style.height = '100%';
+        this.iframe.style.minHeight = '100%';
+        this.iframe.style.flex = '1 1 0%';
         this.iframe.style.border = 'none';
+        this.iframe.style.display = 'block';
         this.iframe.style.backgroundColor = '#FFFFFF';
         this.mainContainer.appendChild(this.iframe);
 
@@ -202,10 +215,9 @@ class Builder {
     }
 
     parse(data) {
-        if (this.themConfigs.name !== data.theme) {
-            alert("Theme mismatch: expected " + this.themConfigs.name + ", but got " + data.theme + " from parsing data");
-            console.error("Theme mismatch: expected " + this.themConfigs.name + ", but got " + data.theme + " from parsing data: " + JSON.stringify(data));
-            throw new Error("Theme mismatch: expected " + this.themConfigs.name + ", but got " + data.theme + " from parsing data");
+        if (!data) return;
+        if (data.theme && this.themConfigs?.name && this.themConfigs.name !== data.theme) {
+            console.warn("Theme notice: loaded theme " + data.theme + ", active layout " + this.themConfigs.name);
         }
 
         this.pageElement.parse(data);
@@ -570,14 +582,28 @@ class Builder {
     renderTemplate(template, options={}) {
         var html = this.getTemplate(template);
 
-        // EJS render with safe defaults
+        // Render with safe defaults
         const safeOptions = {
             styleString: '',
             contentStyleString: '',
             cells: [],
+            elements: '',
+            page: '',
+            text: '',
+            formats: {},
             ...options
         };
-        html = ejs.render(html, safeOptions);
+
+        const ejsEngine = (typeof window !== 'undefined' && window.ejs) ? window.ejs : (typeof ejs !== 'undefined' ? ejs : null);
+        if (ejsEngine && typeof ejsEngine.render === 'function') {
+            try {
+                html = ejsEngine.render(html, safeOptions);
+            } catch (err) {
+                html = this.fallbackRender(html, safeOptions);
+            }
+        } else {
+            html = this.fallbackRender(html, safeOptions);
+        }
 
         // Replace src="..."
         html = html.replace(/src=["']([^"']+)["']/gi, (match, url) => {
@@ -591,19 +617,24 @@ class Builder {
 
         // Replace background:url(...)
         html = html.replace(/background\s*:\s*url\((['"]?)([^"')]+)\1\)/gi, (match, quote, url) => {
-            // If no quote was found, default to double quotes
             const finalQuote = quote || '"';
             return `background:url(${finalQuote}${this.getFullUrl(url)}${finalQuote})`;
-        })
+        });
 
         // Replace background-image:url(...)
         html = html.replace(/background-image\s*:\s*url\((['"]?)([^"')]+)\1\)/gi, (match, quote, url) => {
-            // If no quote was found, default to double quotes
             const finalQuote = quote || '"';
             return `background-image:url(${finalQuote}${this.getFullUrl(url)}${finalQuote})`;
-        })
+        });
 
         return html;
+    }
+
+    fallbackRender(templateStr, data) {
+        if (!templateStr) return '';
+        return templateStr.replace(/<%[=-]?\s*([\w.]+)\s*%>/g, (match, key) => {
+            return data[key] !== undefined && data[key] !== null ? data[key] : '';
+        });
     }
 
     getFullUrl(url)

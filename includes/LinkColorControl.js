@@ -14,12 +14,17 @@ class LinkColorControl {
   }
 
   render() {
+    const safeColor = (this.value && typeof this.value === 'string' && this.value.startsWith('#') && (this.value.length === 7 || this.value.length === 4)) 
+      ? this.value 
+      : '#000000';
+    const safeHex = this.value || '';
+
     this.domNode.innerHTML = `<div class="py-2 ps-3 pe-3 w-100 d-flex align-items-center justify-content-between">
       <label for="${this.id}" class="form-label fw-semibold mb-0 me-3">${this.label}</label>
 
         <div class="d-flex align-items-center ms-auto border border-neutral rounded p-1" style="gap:8px; min-width:120px">
-          <input id="${this.id}_color" type="color" value="${this.value}" class="form-control form-control-color" style="width:33px;height:33px;padding:0;border:none;">
-          <input id="${this.id}_hex" type="text" value="${this.value}" class="form-control border-none text-center" style="width:90px;max-width:90px" />
+          <input id="${this.id}_color" type="color" value="${safeColor}" class="form-control form-control-color" style="width:33px;height:33px;padding:0;border:none;">
+          <input id="${this.id}_hex" type="text" value="${safeHex}" class="form-control border-none text-center" style="width:90px;max-width:90px" placeholder="#000000" />
         </div>
     </div>
     <style>

@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
     ArrowLeft, Save, Globe, Download, Eye, EyeOff, Smartphone, 
     Tablet, Monitor, Sparkles, Check, RefreshCw, Trash2, Sliders,
-    FileText, Plus, Settings, ExternalLink, X, Code, Share2
+    FileText, Plus, Settings, ExternalLink, X, Code, Share2,
+    PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import Builder from '../../builder.js';
 
@@ -17,6 +18,7 @@ export default function EditorView({
     const [breakpoint, setBreakpoint] = useState('desktop'); // 'desktop', 'tablet', 'mobile'
     const [previewMode, setPreviewMode] = useState(false);
     const [activeTab, setActiveTab] = useState('widgets'); // 'widgets', 'controls'
+    const [sidebarOpen, setSidebarOpen] = useState(true); // Toggle sidebar for full page mode
     
     // Multi-page state
     const [pages, setPages] = useState(['Home', 'About Us', 'Services', 'Contact']);
@@ -42,14 +44,20 @@ export default function EditorView({
     const mainContainerRef = useRef(null);
     const widgetsContainerRef = useRef(null);
     const settingsContainerRef = useRef(null);
+    const pageDataMapRef = useRef({});
     const themeDir = site?.theme || 'standard/Y1_a_1_Column_Layout';
 
     useEffect(() => {
         // Sync activeTab when elements are selected in builder canvas
         const handleSelected = () => setActiveTab('controls');
         const handleUnselected = () => setActiveTab('widgets');
+        const handleWidgetAdded = (e) => {
+            notify(`Added ${e.detail?.name || 'component'} to canvas!`);
+        };
+
         window.addEventListener('builder:elementSelected', handleSelected);
         window.addEventListener('builder:elementUnselected', handleUnselected);
+        window.addEventListener('builder:widgetAdded', handleWidgetAdded);
 
         const timer = setTimeout(async () => {
             if (!mainContainerRef.current) return;
@@ -70,14 +78,29 @@ export default function EditorView({
             try {
                 const themeUrl = `/themes/${themeDir}`;
                 let dataToLoad = site?.jsonData;
+                if (typeof dataToLoad === 'string' && dataToLoad.trim()) {
+                    try {
+                        dataToLoad = JSON.parse(dataToLoad);
+                    } catch {
+                        dataToLoad = null;
+                    }
+                }
                 if (!dataToLoad) {
                     const response = await fetch(`${themeUrl}/store.json?t=${Date.now()}`);
                     dataToLoad = await response.json();
                 }
 
+                pageDataMapRef.current[activePage] = dataToLoad;
+
                 await window.builder.load(dataToLoad, themeUrl, () => {
-                    // Ready
+                    if (window.builder) {
+                        window.builder.setMode('design');
+                    }
                 });
+
+                if (window.builder) {
+                    window.builder.setMode('design');
+                }
             } catch (err) {
                 console.error("Error loading theme into builder:", err);
             }
@@ -87,6 +110,15 @@ export default function EditorView({
             clearTimeout(timer);
             window.removeEventListener('builder:elementSelected', handleSelected);
             window.removeEventListener('builder:elementUnselected', handleUnselected);
+            window.removeEventListener('builder:widgetAdded', handleWidgetAdded);
+            // Clean up any lingering builder overlays on document.body
+            document.querySelectorAll('.hovering-box, .selected-box, .actions-box').forEach(el => el.remove());
+            if (window.builder) {
+                try {
+                    window.builder.unselect();
+                } catch {}
+                window.builder = null;
+            }
         };
     }, [themeDir, site?.id]);
 
@@ -202,6 +234,38 @@ export default function EditorView({
         setShowLivePreviewModal(true);
     };
 
+    // Switch Active Page with per-page state preservation
+    const handleSwitchPage = (newPage) => {
+        if (!newPage || newPage === activePage) return;
+        if (window.builder) {
+            try {
+                // Save current page state
+                pageDataMapRef.current[activePage] = window.builder.getData();
+
+                if (pageDataMapRef.current[newPage]) {
+                    window.builder.parse(pageDataMapRef.current[newPage]);
+                    window.builder.render();
+                } else {
+                    const currentData = window.builder.getData();
+                    const freshPage = {
+                        theme: currentData.theme || '1_Column_Layout',
+                        name: 'PageElement',
+                        elementLists: [
+                            currentData.elementLists?.[0] || []
+                        ]
+                    };
+                    pageDataMapRef.current[newPage] = freshPage;
+                    window.builder.parse(freshPage);
+                    window.builder.render();
+                }
+            } catch (err) {
+                console.warn('Error switching page canvas:', err);
+            }
+        }
+        setActivePage(newPage);
+        notify(`Switched to "${newPage}"`);
+    };
+
     // Add New Page to Site
     const handleAddPage = (e) => {
         e.preventDefault();
@@ -209,7 +273,7 @@ export default function EditorView({
         const formatted = newPageTitle.trim();
         if (!pages.includes(formatted)) {
             setPages(prev => [...prev, formatted]);
-            setActivePage(formatted);
+            handleSwitchPage(formatted);
             notify(`Page "${formatted}" created!`);
         }
         setNewPageTitle('');
@@ -340,10 +404,7 @@ export default function EditorView({
                         <FileText className="w-3.5 h-3.5 text-gray-500" />
                         <select 
                             value={activePage}
-                            onChange={(e) => {
-                                setActivePage(e.target.value);
-                                notify(`Switched to "${e.target.value}"`);
-                            }}
+                            onChange={(e) => handleSwitchPage(e.target.value)}
                             className="bg-transparent border-0 text-xs font-semibold text-gray-900 focus:outline-none cursor-pointer pr-1"
                         >
                             {pages.map((p, i) => (
@@ -393,8 +454,18 @@ export default function EditorView({
                     </button>
                 </div>
 
-                {/* Right: Actions (Single Word Button Texts) */}
+                {/* Right: Actions */}
                 <div className="flex items-center gap-2">
+                    {/* Toggle Sidebar for Full Page editing */}
+                    <button 
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border shadow-2xs ${sidebarOpen ? 'bg-white hover:bg-gray-100 text-gray-800 border-gray-200' : 'bg-black text-white border-black'}`}
+                        title={sidebarOpen ? "Hide sidebar for full page view" : "Show sidebar"}
+                    >
+                        {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+                        <span className="hidden sm:inline">{sidebarOpen ? 'Full Page' : 'Sidebar'}</span>
+                    </button>
+
                     {/* Live Preview Modal Button */}
                     <button 
                         onClick={handleOpenLivePreview}
@@ -475,7 +546,7 @@ export default function EditorView({
             {/* BUILDER WORKSPACE BODY */}
             <div className="flex-1 flex overflow-hidden relative">
                 {/* Left Controls Sidebar */}
-                <div className="w-80 bg-white border-r border-gray-200 flex flex-col z-20 flex-shrink-0 shadow-2xs">
+                <div className={`transition-all duration-300 ease-in-out bg-white border-r border-gray-200 flex flex-col z-20 flex-shrink-0 shadow-2xs ${sidebarOpen ? 'w-80' : 'w-0 overflow-hidden border-none'}`}>
                     {/* Tab Navigation */}
                     <div className="flex border-b border-gray-200 bg-gray-50 p-1 gap-1">
                         <button 
@@ -507,13 +578,23 @@ export default function EditorView({
                     ></div>
                 </div>
 
-                {/* Canvas Viewport (With Responsive Wrapper) */}
-                <div className="flex-1 bg-gray-100 p-4 overflow-auto flex items-center justify-center relative">
+                {/* Canvas Viewport (With Responsive Wrapper & Full Page Mode) */}
+                <div className="flex-1 bg-gray-100 p-2 sm:p-4 overflow-auto flex flex-col items-center justify-start relative">
+                    {!sidebarOpen && (
+                        <button 
+                            onClick={() => setSidebarOpen(true)}
+                            className="absolute top-4 left-4 z-40 px-3.5 py-2 rounded-xl bg-black hover:bg-neutral-800 text-white shadow-xl flex items-center gap-2 text-xs font-semibold animate-in fade-in transition-all"
+                            title="Show Sidebar"
+                        >
+                            <PanelLeftOpen className="w-4 h-4" />
+                            <span>Components</span>
+                        </button>
+                    )}
                     <div 
                         id="EditorMainContainer" 
                         ref={mainContainerRef}
-                        className="w-full h-full bg-white rounded-xl shadow-xl overflow-hidden transition-all duration-300 relative border border-gray-300"
-                        style={{ height: '100%', minHeight: '600px' }}
+                        className="w-full bg-white rounded-xl shadow-xl overflow-hidden transition-all duration-300 relative border border-gray-300 flex-1 flex flex-col"
+                        style={{ height: '100%', minHeight: '100%', width: breakpoint === 'desktop' ? '100%' : breakpoint === 'tablet' ? '768px' : '375px', margin: '0 auto' }}
                     >
                         {/* Builder iframe is mounted here */}
                     </div>
@@ -651,13 +732,15 @@ export default function EditorView({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => window.open(`https://${site?.subdomain || 'site.riga.site'}`, '_blank')}
-                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold flex items-center gap-1 border border-gray-200 shadow-2xs"
+                            <a 
+                                href={`https://${site?.subdomain || 'site.riga.site'}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold flex items-center gap-1 border border-gray-200 shadow-2xs text-decoration-none"
                             >
                                 <ExternalLink className="w-3.5 h-3.5" />
                                 <span>Open</span>
-                            </button>
+                            </a>
                             <button 
                                 onClick={() => setShowLivePreviewModal(false)}
                                 className="p-2 rounded-xl text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"

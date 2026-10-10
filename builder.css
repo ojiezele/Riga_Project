@@ -321,18 +321,44 @@ body {
     position: fixed !important;
     z-index: 1002 !important;
     background: #09090b !important;
-    border-radius: 0.5rem !important;
-    padding: 4px 8px !important;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 9999px !important;
+    padding: 3px 8px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+    width: auto !important;
+    max-width: max-content !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    pointer-events: auto !important;
+    transition: all 0.15s ease-out !important;
 }
 
-.actions-box-inner .btn {
-    color: #f4f4f5 !important;
-    padding: 2px 6px !important;
-    border: none !important;
+.actions-box-label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #a1a1aa !important;
+    padding: 0 6px 0 4px !important;
+    white-space: nowrap !important;
+    user-select: none !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.element-action-item {
     background: transparent !important;
+    border: none !important;
+    color: #e4e4e7 !important;
+    padding: 5px !important;
+    border-radius: 9999px !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.15s ease !important;
 }
 
-.actions-box-inner .btn:hover {
-    background: #27272a !important;
+.element-action-item:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    transform: scale(1.1) !important;
 }

@@ -79,6 +79,7 @@ class PageElement extends BaseElement {
                     height: 100vh;
                     background-color: rgba(34,83,159,0.05);
                     border: dashed 1px rgba(120, 130, 150, 0.5);
+                    pointer-events: none;
                     ">
                     <svg style="width: 100px;
                         display: inline-block;

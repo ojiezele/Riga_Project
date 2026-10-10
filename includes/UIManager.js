@@ -9,93 +9,140 @@ class UIManager {
         this.draggableItems = [];
 
         this.draggingItem = null;
+        this.activeDropElement = null;
     }
 
     init() {
-        this.builder.pageElement.domNode.addEventListener('mouseover', (e) => {
+        if (!this.builder || !this.builder.pageElement || !this.builder.pageElement.domNode) {
+            return;
+        }
+
+        const pageDom = this.builder.pageElement.domNode;
+        pageDom.addEventListener('mouseover', (e) => {
             e.preventDefault();
             this.mouseover(this.builder.pageElement);
         });
 
-        this.builder.pageElement.domNode.addEventListener('mouseout', (e) => {
+        pageDom.addEventListener('mouseout', (e) => {
             e.preventDefault();
             this.mouseout(this.builder.pageElement);
         });
+
+        // Global dragover & drop listeners on iframe, document, and body so dragging from outside always works
+        const iframe = this.builder.iframe;
+        const iframeDoc = this.builder.iframeDoc;
+
+        if (iframe) {
+            iframe.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            });
+        }
+
+        if (iframeDoc) {
+            iframeDoc.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            });
+
+            iframeDoc.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (this.draggingItem) {
+                    this.drop(this.builder.pageElement, e);
+                }
+            });
+
+            // Click outside element on blank canvas unselects active element
+            iframeDoc.addEventListener('click', (e) => {
+                const isBuilderElement = e.target.closest('[builder-element]');
+                if (!isBuilderElement) {
+                    this.builder.unselect();
+                }
+            });
+        }
+
+        if (pageDom) {
+            pageDom.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (!this.activeDropElement) {
+                    this.dragOver(this.builder.pageElement, e);
+                }
+            });
+
+            pageDom.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (this.draggingItem) {
+                    this.drop(this.activeDropElement || this.builder.pageElement, e);
+                }
+            });
+        }
     }
 
     addElement(element) {
-        this.elements.push(element);
+        if (!this.elements.includes(element)) {
+            this.elements.push(element);
+        }
         this.handleElementEvents(element);
     }
 
     handleElementEvents(element) {
-        if (!element.eventHandled) {
-            element.domNode.addEventListener('mouseover', (e) => {
-                e.preventDefault();
-                this.mouseover(element);
-            });
-
-            element.domNode.addEventListener('mouseout', (e) => {
-                e.preventDefault();
-                this.mouseout(element);
-            });
-
-            // Droppable elements
-            if (element.isDroppable()) {
-                // dragover event
-                element.domNode.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-
-                    this.dragOver(element, e);
-                });
-
-                // dragleave event
-                element.domNode.addEventListener('dragleave', () => {
-                    this.dragLeave(element);
-                });
-
-                // Drop draggable element
-                element.domNode.addEventListener('drop', (e) => {
-                    e.preventDefault();
-
-                    this.drop(element, e);
-                });
-            }
-
-            // Select element
-            element.domNode.addEventListener('click', (e) => {
-                e.preventDefault();
-
-                const topElement = this.getTopHoveringElement();
-
-                // only click on top element
-                if (topElement != element) {
-                    return;
-                }
-
-                //
-                this.builder.selectElement(topElement);
-            });
-
-            element.eventHandled = true;
+        if (!element || !element.domNode || element.eventHandled) {
+            return;
         }
+
+        element.domNode.addEventListener('mouseover', (e) => {
+            e.stopPropagation();
+            this.mouseover(element);
+        });
+
+        element.domNode.addEventListener('mouseout', (e) => {
+            e.stopPropagation();
+            this.mouseout(element);
+        });
+
+        // Droppable elements
+        if (element.isDroppable()) {
+            element.domNode.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                this.dragOver(element, e);
+            });
+
+            element.domNode.addEventListener('dragleave', (e) => {
+                e.stopPropagation();
+                this.dragLeave(element);
+            });
+
+            element.domNode.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.drop(element, e);
+            });
+        }
+
+        // Select element on click
+        element.domNode.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.builder.selectElement(element);
+        });
+
+        element.eventHandled = true;
     }
 
     mouseover(element) {
         this.addHoveringElement(element);
 
-        // Only add a hover highlight to the last nested element.
         this.hoveringElements.forEach((el) => {
-            if (el == this.getTopHoveringElement()) {
+            if (el === this.getTopHoveringElement()) {
                 el.addHoverHightlight();
             } else {
                 el.removeHoverHightlight();
             }
         });
 
-        //
-        if (element.container) {
-            // Add hover highlight to its container
+        if (element.container && typeof element.container.addContainerHightlight === 'function') {
             element.container.addContainerHightlight();
         }
     }
@@ -104,15 +151,15 @@ class UIManager {
         this.removeHoveringElement(element);
         element.removeHoverHightlight();
 
-        //
-        if (element.container) {
-            // Remove hover highlight to its container
+        if (element.container && typeof element.container.removeContainerHightlight === 'function') {
             element.container.removeContainerHightlight();
         }
     }
 
     addHoveringElement(element) {
-        this.hoveringElements.push(element);
+        if (!this.hoveringElements.includes(element)) {
+            this.hoveringElements.unshift(element); // Most specific element at index 0
+        }
     }
 
     removeHoveringElement(element) {
@@ -123,244 +170,212 @@ class UIManager {
         return this.hoveringElements[0];
     }
 
-    getTopHDraggableElement() {
-        return this.draggableItems[0];
+    addDraggableItem(draggableItem) {
+        if (!this.draggableItems.includes(draggableItem)) {
+            this.draggableItems.push(draggableItem);
+        }
+
+        const anchor = draggableItem.getDragAnchor();
+        if (!anchor) return;
+
+        anchor.setAttribute('draggable', 'true');
+
+        anchor.addEventListener('dragstart', (e) => {
+            this.dragStart(draggableItem);
+            if (e.dataTransfer) {
+                const name = draggableItem.getName ? draggableItem.getName() : 'widget';
+                e.dataTransfer.setData('text/plain', name);
+                e.dataTransfer.effectAllowed = 'copyMove';
+            }
+        });
+
+        anchor.addEventListener('dragend', () => {
+            this.cleanupDrag();
+        });
+
+        // 1-Click to Insert Feature: Clicking a widget in the sidebar inserts it directly!
+        anchor.addEventListener('click', () => {
+            this.insertWidget(draggableItem);
+        });
     }
 
-    getDroppableElements() {
-        return this.elements.filter(element => element.isDroppable());
+    dragStart(draggableItem) {
+        this.draggingItem = draggableItem;
+        this.dragOveringElements = [];
+        this.activeDropElement = null;
     }
 
-    addDragOveringElement(element) {
-        this.dragOveringElements.push(element);
+    cleanupDrag() {
+        this.draggingItem = null;
+        this.dragOveringElements = [];
+        if (this.activeDropElement) {
+            this.activeDropElement.removeDropHighlight?.();
+            this.activeDropElement = null;
+        }
+        this.elements.forEach(el => {
+            el.removeDropHighlight?.();
+            if (el.container) {
+                el.container.removeContainerDropHightlight?.();
+            }
+        });
+        if (this.builder.pageElement) {
+            this.builder.pageElement.removeDropHighlight?.();
+        }
     }
 
-    removeDragOveringElement(element) {
-        this.dragOveringElements = this.dragOveringElements.filter(e => e !== element);
+    // Direct insertion helper (usable by click or programmatic drops)
+    insertWidget(draggableItem) {
+        if (!draggableItem) return;
+        const renderedElements = draggableItem.renderElements();
+        if (!renderedElements || renderedElements.length === 0) return;
+
+        const selected = this.builder.getSelectedElement();
+        if (selected && typeof selected.canDropInside === 'function' && selected.canDropInside()) {
+            selected.appendElements(renderedElements);
+            selected.render();
+        } else if (selected && selected.container && typeof selected.container.addElementsAfter === 'function') {
+            this.addElementsAfter(selected.container, selected, renderedElements);
+        } else {
+            this.builder.pageElement.appendElements(renderedElements);
+            this.builder.pageElement.render();
+        }
+
+        const widgetName = draggableItem.getName ? draggableItem.getName() : 'Widget';
+        window.dispatchEvent(new CustomEvent('builder:widgetAdded', { detail: { name: widgetName } }));
     }
 
     dragOver(element, e) {
         const draggableItem = this.draggingItem;
+        if (!draggableItem) return;
 
-        this.addDragOveringElement(element);
-
-        // Get top drag overing element
-        const topElement = this.getTopDragOveringElement(draggableItem);
-
-        // return if not hover element
-        if (element != topElement) {
-            return;
-        }
-
-        // check if the element can drop before or after
-        if (topElement.canDropAfter() || topElement.canDropBefore()) {
-            if (topElement.checkIfThePositionIsBefore(e.clientX, e.clientY)) {
-                if (topElement.canDropBefore()) {
-                    // Cursor is in the top half of the hovered block
-                    topElement.addDropBeforeHighlight();
-                }
-            } else {
-                if (topElement.canDropAfter()) {
-                    // Cursor is in the bottom half of the hovered block
-                    topElement.addDropAfterHighlight();
-                }
-            }
-
-            //
-            if (element.container) {
-                // Add hover highlight to its container
-                element.container.addContainerDropHightlight();
-
-                if (element.container.container) {
-                    // Add hover highlight to its container
-                    element.container.container.addContainerDropHightlight();
-                }
+        if (this.activeDropElement && this.activeDropElement !== element) {
+            this.activeDropElement.removeDropHighlight?.();
+            if (this.activeDropElement.container) {
+                this.activeDropElement.container.removeContainerDropHightlight?.();
             }
         }
+        this.activeDropElement = element;
 
-        // Check if the element can drop inside
-        else if (topElement.canDropInside()) {
-            topElement.addDropInsideHighlight();
+        if (element.canDropAfter?.() || element.canDropBefore?.()) {
+            const rect = element.domNode.getBoundingClientRect();
+            const isBefore = (e.clientY - rect.top) < (rect.height / 2);
 
-            //
-            if (element.container) {
-                // Add hover highlight to its container
-                element.container.addContainerDropHightlight();
-
-                if (element.container.container) {
-                    // Add hover highlight to its container
-                    element.container.container.addContainerDropHightlight();
-                }
+            if (isBefore && element.canDropBefore?.()) {
+                element.addDropBeforeHighlight?.();
+            } else if (element.canDropAfter?.()) {
+                element.addDropAfterHighlight?.();
             }
+
+            if (element.container?.addContainerDropHightlight) {
+                element.container.addContainerDropHightlight();
+            }
+        } else if (element.canDropInside?.()) {
+            element.addDropInsideHighlight?.();
+            if (element.container?.addContainerDropHightlight) {
+                element.container.addContainerDropHightlight();
+            }
+        }
+    }
+
+    dragLeave(element) {
+        element.removeDropHighlight?.();
+        if (element.container?.removeContainerDropHightlight) {
+            element.container.removeContainerDropHightlight();
+        }
+        if (this.activeDropElement === element) {
+            this.activeDropElement = null;
         }
     }
 
     drop(element, e) {
         const draggableItem = this.draggingItem;
+        if (!draggableItem) return;
 
-        if (!draggableItem) {
-            console.warn('No draggable item to drop');
+        const target = element || this.activeDropElement || this.builder.pageElement;
+        target.removeDropHighlight?.();
+
+        const renderedElements = draggableItem.renderElements();
+        if (!renderedElements || renderedElements.length === 0) {
+            this.cleanupDrag();
             return;
         }
 
-        const topElement = this.getTopDragOveringElement(draggableItem);
-        
-        // remove dropover highlight
-        topElement.removeDropHighlight();
+        if (target.canDropAfter?.() || target.canDropBefore?.()) {
+            const rect = target.domNode ? target.domNode.getBoundingClientRect() : { top: 0, height: 100 };
+            const isBefore = (e.clientY - rect.top) < (rect.height / 2);
 
-        // release the dragging item
-        this.draggingItem = null;
-
-        // return if current element is not top one to drop
-        if (topElement != element || !draggableItem) {
-            return;
-        }
-
-        // check if the element can drop before or after
-        if (topElement.canDropAfter() || topElement.canDropBefore()) {
-            if (topElement.checkIfThePositionIsBefore(e.clientX, e.clientY)) {
-                if (topElement.canDropBefore()) {
-                    // Cursor is in the top half of the hovered block
-                    this.addElementsBefore(topElement.container, topElement, draggableItem.renderElements());
-                }
+            const container = target.container || this.builder.pageElement;
+            if (isBefore && target.canDropBefore?.()) {
+                this.addElementsBefore(container, target, renderedElements);
+            } else if (target.canDropAfter?.()) {
+                this.addElementsAfter(container, target, renderedElements);
             } else {
-                if (topElement.canDropAfter()) {
-                    // Cursor is in the bottom half of the hovered block
-                    this.addElementsAfter(topElement.container, topElement, draggableItem.renderElements());
-                }
+                this.addElementsAfter(container, target, renderedElements);
             }
-
-            //
-            if (topElement.container) {
-                // Add hover highlight to its container
-                topElement.container.removeContainerDropHightlight();
-
-                if (topElement.container.container) {
-                    // Add hover highlight to its container
-                    topElement.container.container.removeContainerDropHightlight();
-                }
+        } else if (target.canDropInside?.()) {
+            const newBlocks = target.appendElements(renderedElements);
+            target.render();
+            if (Array.isArray(newBlocks)) {
+                newBlocks.forEach(b => b.fadeIn?.());
             }
-
-            // remove current element
-            if (draggableItem.removeAfterDrop()) {
-                // remove 
-                draggableItem.remove();
+        } else {
+            // Default: append directly to PageElement
+            const newBlocks = this.builder.pageElement.appendElements(renderedElements);
+            this.builder.pageElement.render();
+            if (Array.isArray(newBlocks)) {
+                newBlocks.forEach(b => b.fadeIn?.());
             }
         }
 
-        // Check if the element can drop inside
-        else if (topElement.canDropInside()) {
-            var newBlocks = topElement.appendElements(draggableItem.renderElements());
-
-            //
-            topElement.render();
-
-            // effects
-            newBlocks.forEach(block => {
-            block.fadeIn();
-            });
-
-            //
-            if (topElement.container) {
-                // Add hover highlight to its container
-                topElement.container.removeContainerDropHightlight();
-
-                if (topElement.container.container) {
-                    // Add hover highlight to its container
-                    topElement.container.container.removeContainerDropHightlight();
-                }
-            }
-
-            // remove current element
-            if (draggableItem.removeAfterDrop()) {
-                // remove
-                draggableItem.remove();
-            }
+        if (draggableItem.removeAfterDrop?.()) {
+            draggableItem.remove();
         }
+
+        const widgetName = draggableItem.getName ? draggableItem.getName() : 'Widget';
+        window.dispatchEvent(new CustomEvent('builder:widgetAdded', { detail: { name: widgetName } }));
+
+        this.cleanupDrag();
     }
 
     addElementsAfter(container, referenceBlock, elements) {
-        var newBlocks = container.addElementsAfter(elements, referenceBlock);
+        if (!container || typeof container.addElementsAfter !== 'function') {
+            this.builder.pageElement.appendElements(elements);
+            this.builder.pageElement.render();
+            return;
+        }
 
+        const newBlocks = container.addElementsAfter(elements, referenceBlock);
         container.render();
-
-        // effects
-        newBlocks.forEach(block => {
-           block.fadeIn();
-        });
+        if (Array.isArray(newBlocks)) {
+            newBlocks.forEach(block => block.fadeIn?.());
+        }
     }
 
     addElementsBefore(container, referenceBlock, elements) {
-        var newBlocks = container.addElementsBefore(elements, referenceBlock);
-
-        container.render();
-
-        // effects
-        newBlocks.forEach(block => {
-           block.fadeIn();
-        });
-    }
-
-    dragLeave(element) {
-        this.removeDragOveringElement(element);
-
-        // just remove the drop highlight
-        element.removeDropHighlight();
-
-        //
-        if (element.container) {
-            // Add hover highlight to its container
-            element.container.removeContainerDropHightlight();
-
-            if (element.container.container) {
-                // Add hover highlight to its container
-                element.container.container.removeContainerDropHightlight();
-            }
+        if (!container || typeof container.addElementsBefore !== 'function') {
+            this.builder.pageElement.appendElements(elements);
+            this.builder.pageElement.render();
+            return;
         }
-    }
-    
-    getTopDragOveringElement(draggableItem) {
-        // return this.dragOveringElements.find(e => draggableItem.canDropOn(e));
-        return this.dragOveringElements[0];
-    }
 
-    addDraggableItem(draggableItem) {
-        this.draggableItems.push(draggableItem);
-
-        //
-        draggableItem.getDragAnchor().setAttribute('draggable', true);
-
-        // handle dragstart event
-        draggableItem.getDragAnchor().addEventListener('dragstart', (e) => {
-            if (this.draggingItem != null) {
-                return;
-            }
-
-            this.dragStart(draggableItem);
-        });
+        const newBlocks = container.addElementsBefore(elements, referenceBlock);
+        container.render();
+        if (Array.isArray(newBlocks)) {
+            newBlocks.forEach(block => block.fadeIn?.());
+        }
     }
 
     removeDraggableItem(object) {
         this.draggableItems = this.draggableItems.filter(e => e !== object);
     }
 
-    getDraggableItemByIndex(index) {
-        return this.draggableItems[index];
-    }
-
-    dragStart(draggableItem) {
-        this.draggingItem = draggableItem;
-        
-        // clear drag over elements
-        this.dragOveringElements = [];
-    }
-
     removeElement(element) {
         this.elements = this.elements.filter(e => e !== element);
-
-        this.removeDragOveringElement(element);
         this.removeHoveringElement(element);
         this.removeDraggableItem(element);
+        if (this.activeDropElement === element) {
+            this.activeDropElement = null;
+        }
     }
 }
 
