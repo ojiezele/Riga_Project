@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #fafafa;
+    color: #09090b;
+    font-family: 'Syne', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.02em;
+  }
+
+  button, .btn-luxury {
+    border-radius: 9999px !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  button:hover:not(:disabled), .btn-luxury:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-luxury {
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #ffffff;
+  }
+
+  .font-display {
+    font-family: 'Syne', 'Outfit', sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+}
+
+/* Custom Scrollbar for Sleek Dashboards */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

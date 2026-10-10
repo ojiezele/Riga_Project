@@ -4,7 +4,7 @@ class HeaderWidget extends BaseWidget {
     }
 
     getIcon() {
-        return 'toolbar';
+        return 'view_headline';
     }
 
     constructor() {

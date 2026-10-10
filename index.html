@@ -3,28 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riga Project</title>
-    <link rel="stylesheet" href="/builder.css">
-</head>
-<body>
-    <div id="widgets-container"></div>
-    <div id="builder-container"></div>
-    <div id="settings-container"></div>
+    <title>Riga SaaS & Visual Builder</title>
+    <meta name="description" content="A complete React SaaS and drag-and-drop website builder platform.">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     
-    <script type="module">
-        import Builder from '/builder.js';
-        
-        window.addEventListener('load', () => {
-            const builder = new window.Builder({
-                mainContainer: '#builder-container',
-                settingsContainer: '#settings-container',
-                widgetsContainer: '#widgets-container'
-            });
-            
-            // Assuming there is some initial data or a way to load a theme
-            // Since I don't have theme data, this might need more work
-            console.log("Builder initialized:", builder);
-        });
-    </script>
+    <link href="/builder.css" rel="stylesheet" />
+
+    <!-- HTML2Canvas & jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen selection:bg-black selection:text-white">
+    <!-- React Root Mount -->
+    <div id="root"></div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- React Main Entry -->
+    <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

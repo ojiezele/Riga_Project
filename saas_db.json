@@ -1,0 +1,170 @@
+{
+  "user": {
+    "email": "ojiezele0@gmail.com",
+    "name": "Ojiezele",
+    "plan": "WordPress Pro SaaS Multi-Tenant"
+  },
+  "sites": [
+    {
+      "id": "site_1",
+      "name": "My Portfolio",
+      "subdomain": "portfolio.riga.site",
+      "theme": "standard/Y1_a_1_Column_Layout",
+      "status": "published",
+      "visitors": "1,420",
+      "updated": "2026-10-10"
+    },
+    {
+      "id": "site_2",
+      "name": "Startup Landing",
+      "subdomain": "startup.riga.site",
+      "theme": "standard/Y0_Blank",
+      "status": "draft",
+      "visitors": "320",
+      "updated": "2026-10-10"
+    }
+  ],
+  "team": [
+    {
+      "id": "t_1",
+      "name": "Ojiezele",
+      "email": "ojiezele0@gmail.com",
+      "role": "Owner",
+      "status": "Active"
+    },
+    {
+      "id": "t_2",
+      "name": "Sarah Jenkins",
+      "email": "sarah@riga.site",
+      "role": "Administrator",
+      "status": "Active"
+    },
+    {
+      "id": "t_3",
+      "name": "Alex Rivera",
+      "email": "alex@riga.site",
+      "role": "Editor",
+      "status": "Pending"
+    }
+  ],
+  "domains": [
+    {
+      "id": "d_1",
+      "site": "My Portfolio",
+      "domain": "portfolio.riga.site",
+      "type": "Subdomain",
+      "ssl": "Active"
+    },
+    {
+      "id": "d_2",
+      "site": "Startup Landing",
+      "domain": "startup.riga.site",
+      "type": "Subdomain",
+      "ssl": "Pending"
+    }
+  ],
+  "media": [
+    {
+      "id": "m_1",
+      "title": "Modern Office Workspace Banner",
+      "url": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+      "type": "image/jpeg",
+      "size": "240 KB",
+      "dimensions": "1200 x 800",
+      "category": "Hero Banners",
+      "uploadedAt": "2026-10-10"
+    },
+    {
+      "id": "m_2",
+      "title": "Cloud Analytics Dashboard Mockup",
+      "url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+      "type": "image/jpeg",
+      "size": "180 KB",
+      "dimensions": "1200 x 750",
+      "category": "Product UI",
+      "uploadedAt": "2026-10-10"
+    },
+    {
+      "id": "m_3",
+      "title": "Minimal Brand Logo Mark",
+      "url": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+      "type": "image/png",
+      "size": "34 KB",
+      "dimensions": "512 x 512",
+      "category": "Logos & Icons",
+      "uploadedAt": "2026-10-09"
+    },
+    {
+      "id": "m_4",
+      "title": "Team Collaboration Meeting",
+      "url": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
+      "type": "image/jpeg",
+      "size": "310 KB",
+      "dimensions": "1200 x 800",
+      "category": "Team",
+      "uploadedAt": "2026-10-08"
+    }
+  ],
+  "leads": [
+    {
+      "id": "lead_1",
+      "site": "My Portfolio",
+      "formName": "Contact Inquiry",
+      "name": "Marcus Vance",
+      "email": "marcus@vancetech.io",
+      "message": "Hi, we are looking for a complete website overhaul for our SaaS platform. What is your turnaround time?",
+      "date": "2026-10-10 11:24",
+      "status": "New"
+    },
+    {
+      "id": "lead_2",
+      "site": "Startup Landing",
+      "formName": "Newsletter Waitlist",
+      "name": "Elena Rostova",
+      "email": "elena.design@gmail.com",
+      "message": "Subscribed to product updates waitlist.",
+      "date": "2026-10-09 17:40",
+      "status": "Contacted"
+    },
+    {
+      "id": "lead_3",
+      "site": "My Portfolio",
+      "formName": "Enterprise Consultation",
+      "name": "David Sterling",
+      "email": "d.sterling@acmecorp.com",
+      "message": "Requesting a demo for multi-region site hosting and team RBAC permissions.",
+      "date": "2026-10-08 09:15",
+      "status": "Archived"
+    }
+  ],
+  "activity": [
+    {
+      "id": "act_1",
+      "user": "Ojiezele",
+      "action": "Published live updates to My Portfolio",
+      "site": "My Portfolio",
+      "timestamp": "12 minutes ago"
+    },
+    {
+      "id": "act_2",
+      "user": "Sarah Jenkins",
+      "action": "Connected custom domain acme.com",
+      "site": "Startup Landing",
+      "timestamp": "2 hours ago"
+    },
+    {
+      "id": "act_3",
+      "user": "Ojiezele",
+      "action": "Invited Alex Rivera as Editor",
+      "site": "Workspace",
+      "timestamp": "Yesterday"
+    },
+    {
+      "id": "act_4",
+      "user": "System",
+      "action": "Automated Let's Encrypt TLS 1.3 certificate issued",
+      "site": "portfolio.riga.site",
+      "timestamp": "2 days ago"
+    }
+  ]
+}

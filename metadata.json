@@ -1,0 +1,8 @@
+{
+  "name": "Riga Studio - Visual Website & App Builder",
+  "description": "Enterprise-grade drag-and-drop visual website and newsletter builder with customizable themes, responsive breakpoints, widgets, and self-contained exports.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,5 +1,3 @@
-import { name } from "ejs-browser";
-
 class SettingsTabManager {
     constructor(container) {
         this.container = container;

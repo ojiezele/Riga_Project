@@ -44,6 +44,7 @@ class Builder {
 
         //
         this.carousel = options.carousel ?? false;
+        window.builder = this;
     }
 
     async load(data, themeUrl, callback) {
@@ -114,7 +115,7 @@ class Builder {
     async loadTemplates(themeUrl) {
         await Promise.all(
             this.themConfigs.templates.map(async (templateName) => {
-                const html = await this.loadHTML(`${themeUrl}/${templateName}.template.html`);
+                const html = await this.loadHTML(`${themeUrl}/${templateName}.tpl`);
                 this.templates[templateName] = html;
             })
         );
@@ -138,9 +139,12 @@ class Builder {
     }
 
     async loadWidgetsJs(themeUrl) {
-        const themeWidgetsJsPath = `${themeUrl}/widgets/index.js`;
+        if (this.widgetsContainer) {
+            this.widgetsContainer.innerHTML = '';
+        }
+        const themeWidgetsJsPath = `${themeUrl}/widgets/index.js?t=${Date.now()}`;
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const script = document.createElement('script');
             script.src = themeWidgetsJsPath;
             script.type = 'module';
@@ -150,9 +154,9 @@ class Builder {
                 resolve();
             };
 
-            script.onerror = () => {
-                alert(`Failed to load widgets from ${themeWidgetsJsPath}`);
-                reject(new Error(`Failed to load script: ${themeWidgetsJsPath}`));
+            script.onerror = (e) => {
+                console.warn(`Widgets script warning for ${themeWidgetsJsPath}:`, e);
+                resolve();
             };
 
             document.head.appendChild(script);
@@ -214,16 +218,19 @@ class Builder {
     }
 
     getHtml() {
-        // Only return the content inside <html> (not including the <html> tag itself)
-        const htmlDoc = this.iframe.contentDocument.documentElement;
-        // Remove builder-helper elements
-        htmlDoc.querySelectorAll('[data-control="builder-helper"]').forEach(el => el.remove());
+        if (!this.iframe || !this.iframe.contentDocument) return '';
+        const doc = this.iframe.contentDocument;
+        if (!doc.documentElement) return '';
 
-        // remove all contenteditable attributes
-        htmlDoc.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        // Clone document to preserve active editor state
+        const clone = doc.documentElement.cloneNode(true);
 
-        // Return only the inner HTML of <html>
-        return htmlDoc.outerHTML;
+        // Remove builder helper / editor artifacts
+        clone.querySelectorAll('[data-control="builder-helper"]').forEach(el => el.remove());
+        clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        clone.querySelectorAll('.hovering-box, .selected-box, .actions-box').forEach(el => el.remove());
+
+        return '<!DOCTYPE html>\n' + clone.outerHTML;
     }
 
     getSelectedElement() {
@@ -252,11 +259,16 @@ class Builder {
         // Add selected class
         element.addSelectedHighlight();
 
-        // @todo depenency: open settings tab
-        window.sidebarTabManager.openTab(document.querySelector('[data-tab="controls"]'));
-        if (window.smenu) {
-            window.smenu.openTab(document.querySelector('[data-smenu="design"]'));
+        // Safe tab switching & event dispatch
+        if (window.sidebarTabManager) {
+            const controlsTab = document.querySelector('[data-tab="controls"]');
+            if (controlsTab) window.sidebarTabManager.openTab(controlsTab);
         }
+        if (window.smenu) {
+            const designTab = document.querySelector('[data-smenu="design"]');
+            if (designTab) window.smenu.openTab(designTab);
+        }
+        window.dispatchEvent(new CustomEvent('builder:elementSelected', { detail: element }));
     }
 
     unselect() {
@@ -267,11 +279,16 @@ class Builder {
         // remove selected effect
         this.getSelectedElement().removeSelectedHighlight();
 
-        // @todo depenency: open widgets tab
-        window.sidebarTabManager.openTab(document.querySelector('[data-tab="widgets"]'));
-        if (window.smenu) {
-            window.smenu.openTab(document.querySelector('[data-smenu="design"]'));
+        // Safe tab switching & event dispatch
+        if (window.sidebarTabManager) {
+            const widgetsTab = document.querySelector('[data-tab="widgets"]');
+            if (widgetsTab) window.sidebarTabManager.openTab(widgetsTab);
         }
+        if (window.smenu) {
+            const designTab = document.querySelector('[data-smenu="design"]');
+            if (designTab) window.smenu.openTab(designTab);
+        }
+        window.dispatchEvent(new CustomEvent('builder:elementUnselected'));
     }
 
     getMode() {
@@ -309,60 +326,57 @@ class Builder {
     renderElementControls(element) {
         const container = this.settingsContainer;
 
-        // 
         container.innerHTML = `
-            <div class="settings-container styles-box shadow-sm rounded-0 bg-white">
-                <div class="settings-header d-flex align-items-center py-2 px-3 mb-2">
-                    <h6 class="text-start me-auto mb-0 fw-bold">
-                        ` + element.getClassName() + `
-                    </h6>
-                    <div data-control="actions" class="d-flex btn-group">
+            <div class="settings-container bg-white p-4 space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Selected Element</span>
+                        <h6 class="font-extrabold text-sm text-gray-900 mt-0.5">${element.getClassName()}</h6>
+                    </div>
+                    <div data-control="actions" class="flex items-center gap-1.5">
                     </div>
                 </div>
                     
-                <div data-control="settings-controls-container">
+                <div data-control="settings-controls-container" class="space-y-3">
                 </div>
             </div>
         `;
 
-        //
         const controls = element.getControls();
 
-        // settings header
         const head = document.createElement('div');
-        head.className = 'settings-header mx-3';
+        head.className = 'flex items-center gap-2 pt-2';
         head.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small">CONFIGURATIONS</span>
-                <span class="d-block mx-3 w-100" style="height:1px;background-color:rgb(206, 212, 218);"></span>
-                <span class="d-flex align-items-center"><span class="material-symbols-rounded">keyboard_arrow_down</span></span>
-            </div>
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-900">Configurations</span>
+            <div class="flex-1 h-px bg-gray-200"></div>
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         `;
         container.querySelector('[data-control="settings-controls-container"]').appendChild(head);
 
-        // render element controls
         controls.forEach((control) => {
             const controlObj = control.domNode;
             container.querySelector('[data-control="settings-controls-container"]').appendChild(controlObj);
 
-            //
             if (control.afterRender) {
                 control.afterRender();
             }
         });
 
-        // render head actions
         element.getActions().forEach(action => {
             var actionButton = document.createElement('button');
-            actionButton.setAttribute('class', 'element-action-item btn btn-light p-1 d-flex align-items-center');
+            actionButton.setAttribute('class', 'p-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white text-gray-700 transition-all shadow-2xs');
             actionButton.setAttribute('title', action.label);
-            actionButton.innerHTML = `
-                <span class="material-symbols-rounded">`+action.icon+`</span>
-            `;
+            
+            let actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5"/></svg>`;
+            if (action.icon === 'delete' || action.label?.toLowerCase().includes('delete')) {
+                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
+            } else if (action.icon === 'content_copy' || action.label?.toLowerCase().includes('duplicate')) {
+                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+            }
+            actionButton.innerHTML = actionSvg;
 
             container.querySelector('[data-control="actions"]').appendChild(actionButton);
 
-            // events
             actionButton.addEventListener('click', () => {
                 action.run();
             });
@@ -556,8 +570,14 @@ class Builder {
     renderTemplate(template, options={}) {
         var html = this.getTemplate(template);
 
-        // EJS render
-        html = ejs.render(html, options);
+        // EJS render with safe defaults
+        const safeOptions = {
+            styleString: '',
+            contentStyleString: '',
+            cells: [],
+            ...options
+        };
+        html = ejs.render(html, safeOptions);
 
         // Replace src="..."
         html = html.replace(/src=["']([^"']+)["']/gi, (match, url) => {

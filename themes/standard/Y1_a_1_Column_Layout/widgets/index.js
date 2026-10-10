@@ -12,7 +12,17 @@ import TitleWidget from './TitleWidget.js';
 import DescImageWidget from './DescImageWidget.js';
 import CopyrightWidget from './CopyrightWidget.js';
 
+import TestimonialWidget from './TestimonialWidget.js';
+import CounterWidget from './CounterWidget.js';
+import PricingWidget from './PricingWidget.js';
+import CallToActionWidget from './CallToActionWidget.js';
+import IconBoxWidget from './IconBoxWidget.js';
 
+window.TestimonialWidget = TestimonialWidget;
+window.CounterWidget = CounterWidget;
+window.PricingWidget = PricingWidget;
+window.CallToActionWidget = CallToActionWidget;
+window.IconBoxWidget = IconBoxWidget;
 
 builder.widgetsBox.addWidget(new HeaderWidget(), {
     group: 'Theme Components',
@@ -67,6 +77,22 @@ builder.widgetsBox.addWidget(new RSSWidget(), {
     group: 'Basic',
 });
 builder.widgetsBox.addWidget(new YoutubeWidget(), {
+    group: 'Basic',
+});
+
+builder.widgetsBox.addWidget(new TestimonialWidget(), {
+    group: 'Basic',
+});
+builder.widgetsBox.addWidget(new CounterWidget(), {
+    group: 'Basic',
+});
+builder.widgetsBox.addWidget(new IconBoxWidget(), {
+    group: 'Basic',
+});
+builder.widgetsBox.addWidget(new PricingWidget(), {
+    group: 'Basic',
+});
+builder.widgetsBox.addWidget(new CallToActionWidget(), {
     group: 'Basic',
 });
 

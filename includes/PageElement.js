@@ -41,7 +41,7 @@ class PageElement extends BaseElement {
         if (!this.domNode) {
             //
             var htmlContent = this.renderTemplate('Page', {
-                page: '<div builder-element="PageElement"></div>',
+                page: '',
                 formats: this.formats,
             });
             this.builder.iframeDoc.open();

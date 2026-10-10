@@ -9,7 +9,6 @@ class WidgetsBox {
         if (typeof options.group === 'undefined') {
             options.group = 'Basic';
         }
-        console.log(options.group);
 
         if (typeof this.widgetGroups[options.group] === 'undefined') {
             this.widgetGroups[options.group] = [];
@@ -26,32 +25,28 @@ class WidgetsBox {
         if (!this.widgetItemsContainer) {
             const wrapper = document.createElement('div');
             wrapper.innerHTML = `
-                <div class="widgets-box shadow-sm rounded-0 bg-light">
-                    <div class="widget-header w-100 p-3">
-                        <div class="alert alert-light fst-italic rounded-2 bg-light border-0 mb-0">
-                            ✨ Just drag & drop the widget 👇 into the page content to insert!
-                        </div>
-                    </div>
-                    <div class="widget-items"></div>
+                <div class="widgets-box bg-transparent">
+                    <div class="widget-items space-y-4"></div>
                 </div>
             `;
             this.widgetItemsContainer = wrapper.querySelector('.widget-items');
             this.container.appendChild(wrapper);
         }
 
-        //
         this.widgetItemsContainer.innerHTML = ''; // Clear previous content
 
         Object.entries(this.widgetGroups).forEach(([key, widgets]) => {
             const groupDom = document.createElement('div');
             groupDom.innerHTML = `
-                <div class="widgets-group">
-                    <div class="widget-group-header w-100 px-3 d-flex justify-content-between align-items-center cursor-pointer">
-                        <h6 class="widget-group-title mb-0 text-nowrap">${key}</h6>
-                        <hr class="mx-3 w-100">
-                        <span class="material-symbols-rounded toggle-icon" style="cursor:pointer;">expand_more</span>
+                <div class="widgets-group bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs mb-4">
+                    <div class="widget-group-header px-4 py-3.5 flex items-center justify-between cursor-pointer bg-gray-50/80 hover:bg-gray-100/80 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-900">${key}</span>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-500 toggle-icon transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
                     </div>
-                    <div class="widget-items-container"><div class="widget-group-items"></div></div>
+                    <div class="widget-items-container p-3 space-y-2 bg-white"><div class="widget-group-items space-y-2"></div></div>
                 </div>
             `;
 
@@ -60,20 +55,14 @@ class WidgetsBox {
             const groupContent = groupDom.querySelector('.widget-group-items');
             const groupContainer = groupDom.querySelector('.widget-items-container');
 
-            // Initially collapsed
-            // groupContainer.style.display = 'none';
-
-            // Toggle functionality
             header.addEventListener('click', () => {
                 const isCollapsed = groupContainer.style.display === 'none';
                 if (isCollapsed) {
                     groupContainer.style.display = 'block';
-                    toggleIcon.textContent = 'expand_less';
-                    // Smooth scroll to this group
-                    groupDom.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    toggleIcon.style.transform = 'rotate(0deg)';
                 } else {
                     groupContainer.style.display = 'none';
-                    toggleIcon.textContent = 'expand_more';
+                    toggleIcon.style.transform = 'rotate(180deg)';
                 }
             });
 
