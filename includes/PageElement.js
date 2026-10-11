@@ -74,18 +74,27 @@ class PageElement extends BaseElement {
         if (this.blocks.length == 0) {
             this.domNode.innerHTML = `
                 <div data-control="builder-helper" style="display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    height: 100vh;
-                    background-color: rgba(34,83,159,0.05);
-                    border: dashed 1px rgba(120, 130, 150, 0.5);
+                    min-height: 400px;
+                    margin: 40px auto;
+                    max-width: 640px;
+                    border: 2px dashed #94a3b8;
+                    border-radius: 20px;
+                    background-color: #f8fafc;
+                    padding: 48px 24px;
+                    text-align: center;
                     pointer-events: none;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
                     ">
-                    <svg style="width: 100px;
-                        display: inline-block;
-                        margin: auto;
-                        opacity: 1;" xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#808080"><path d="M345-285q-24 0-42-18t-18-42v-435q0-24 18-42t42-18h435q24 0 42 18t18 42v435q0 24-18 42t-42 18H345Zm0-60h435v-435H345v435ZM149.82-615q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm0 165q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm0 165q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm0 165q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm165 0q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm165 0q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Zm165 0q-12.82 0-21.32-8.68-8.5-8.67-8.5-21.5 0-12.82 8.68-21.32 8.67-8.5 21.5-8.5 12.82 0 21.32 8.68 8.5 8.67 8.5 21.5 0 12.82-8.68 21.32-8.67 8.5-21.5 8.5Z"/></svg>
-                    
+                    <div style="width: 56px; height: 56px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; color: #475569;">
+                        <svg style="width: 28px; height: 28px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </div>
+                    <h3 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0;">Canvas is empty</h3>
+                    <p style="font-size: 13px; color: #64748b; margin: 0 0 16px 0; max-width: 380px;">Drag and drop components from the left sidebar, or click any widget to insert it here.</p>
+                    <span style="font-size: 11px; font-weight: 700; color: #0f172a; background: #f1f5f9; padding: 4px 14px; border-radius: 9999px; border: 1px solid #cbd5e1;">Drop Target Ready</span>
                 </div>
             `;
         }
@@ -200,6 +209,10 @@ class PageElement extends BaseElement {
         this.blocks.forEach(block => {
             block.remove();
         });
+        this.blocks = [];
+        if (this.domNode) {
+            this.domNode.innerHTML = '';
+        }
 
         //
         this.render();

@@ -209,11 +209,14 @@ class BaseElement {
 
         if (!setPosSize) {
             setPosSize = () => {
+                if (!box || !box.isConnected || !box.style) return;
+                if (!this.domNode || !this.domNode.ownerDocument) return;
+
+                const iframe = this.domNode.ownerDocument.defaultView?.frameElement;
+                if (!iframe) return;
+
                 // Get the bounding rect of the domNode inside the iframe
                 const domRect = this.domNode.getBoundingClientRect();
-
-                // Get the iframe element that contains the domNode
-                const iframe = this.domNode.ownerDocument.defaultView.frameElement;
                 const iframeRect = iframe.getBoundingClientRect();
 
                 // Calculate absolute position of domNode relative to main window
@@ -231,36 +234,54 @@ class BaseElement {
             };
         }
 
-        setPosSize();
+        try {
+            setPosSize();
+        } catch (e) {
+            // Ignore layout measurement during unmount or transition
+        }
 
         //
         if (!box.events) {
             // === IFRAME SCROLL & RESIZE ===
-            const iframeWindow = this.domNode.ownerDocument.defaultView;
-            const iframeDocument = this.domNode.ownerDocument;
-            
-            iframeWindow.addEventListener('scroll', () => {
-                setPosSize();
-            }, true);
-            iframeWindow.addEventListener('resize', () => {
-                setPosSize();
-            });
+            const iframeWindow = this.domNode?.ownerDocument?.defaultView;
+            const iframeDocument = this.domNode?.ownerDocument;
+            if (!iframeWindow || !iframeDocument) return;
+
+            let mutationObserver = null;
+            const safeUpdate = () => {
+                // If box was removed from the DOM or has no style, unobserve and return
+                if (!box || !box.isConnected || !box.style) {
+                    if (mutationObserver) {
+                        try {
+                            mutationObserver.disconnect();
+                        } catch (err) {}
+                        mutationObserver = null;
+                    }
+                    return;
+                }
+                try {
+                    setPosSize();
+                } catch (err) {
+                    // Suppress any transient error while dragging / re-rendering
+                }
+            };
+
+            iframeWindow.addEventListener('scroll', safeUpdate, true);
+            iframeWindow.addEventListener('resize', safeUpdate);
 
             // Optional: also watch for DOM mutations (e.g., added/removed elements)
-            const mutationObserver = new iframeWindow.MutationObserver(() => {
-                setPosSize();
-            });
-            mutationObserver.observe(iframeDocument.body, { childList: true, subtree: true, attributes: true });
+            if (iframeDocument.body && iframeWindow.MutationObserver) {
+                mutationObserver = new iframeWindow.MutationObserver(() => {
+                    safeUpdate();
+                });
+                mutationObserver.observe(iframeDocument.body, { childList: true, subtree: true, attributes: true });
+            }
 
             box.events = true;
 
             // Outer Document
-            window.document.addEventListener('scroll', () => {
-                setPosSize();
-            }, true);
-            window.document.addEventListener('resize', () => {
-                setPosSize();
-            });
+            window.document.addEventListener('scroll', safeUpdate, true);
+            window.document.addEventListener('resize', safeUpdate);
         }
     }
 
@@ -324,7 +345,7 @@ class BaseElement {
             document.body.appendChild(this.actionsBox);
 
             this.matchingDomNode(this.actionsBox, () => {
-                if (!this.actionsBox || !this.domNode || !this.domNode.ownerDocument) {
+                if (!this.actionsBox || !this.actionsBox.isConnected || !this.actionsBox.style || !this.domNode || !this.domNode.ownerDocument) {
                     return;
                 }
 
@@ -449,67 +470,116 @@ class BaseElement {
         return actions;
     }
 
-    /* DROP INSIDE EFFECTS */
+    /* DROP INDICATORS (NON-BLOCKING WITH POINTER-EVENTS: NONE) */
     addDropBeforeHighlight() {
-        // remove other effects
         this.removeDropHighlight();
 
         if (!this.dropBeforeBox) {
             this.dropBeforeBox = document.createElement('div');
             this.dropBeforeBox.classList.add('drop-before-box');
-
-            // Append it to the body
+            this.dropBeforeBox.style.pointerEvents = 'none';
             document.body.appendChild(this.dropBeforeBox);
         }
-        this.matchingDomNode(this.dropBeforeBox);
+
+        this.matchingDomNode(this.dropBeforeBox, () => {
+            if (!this.dropBeforeBox || !this.dropBeforeBox.isConnected || !this.dropBeforeBox.style || !this.domNode || !this.domNode.ownerDocument) return;
+            const domRect = this.domNode.getBoundingClientRect();
+            const iframe = this.domNode.ownerDocument.defaultView?.frameElement;
+            if (!iframe) return;
+
+            const iframeRect = iframe.getBoundingClientRect();
+            const absoluteTop = iframeRect.top + domRect.top;
+            const absoluteLeft = iframeRect.left + domRect.left;
+
+            Object.assign(this.dropBeforeBox.style, {
+                position: 'fixed',
+                top: `${Math.max(0, absoluteTop - 3)}px`,
+                left: `${absoluteLeft}px`,
+                width: `${domRect.width}px`,
+                height: '6px',
+                pointerEvents: 'none',
+                zIndex: '999999',
+            });
+        });
     }
 
     addDropAfterHighlight() {
-        // remove other effects
         this.removeDropHighlight();
 
         if (!this.dropAfterBox) {
             this.dropAfterBox = document.createElement('div');
             this.dropAfterBox.classList.add('drop-after-box');
-
-            // Append it to the body
+            this.dropAfterBox.style.pointerEvents = 'none';
             document.body.appendChild(this.dropAfterBox);
         }
-        this.matchingDomNode(this.dropAfterBox);
+
+        this.matchingDomNode(this.dropAfterBox, () => {
+            if (!this.dropAfterBox || !this.dropAfterBox.isConnected || !this.dropAfterBox.style || !this.domNode || !this.domNode.ownerDocument) return;
+            const domRect = this.domNode.getBoundingClientRect();
+            const iframe = this.domNode.ownerDocument.defaultView?.frameElement;
+            if (!iframe) return;
+
+            const iframeRect = iframe.getBoundingClientRect();
+            const absoluteTop = iframeRect.top + domRect.top;
+            const absoluteLeft = iframeRect.left + domRect.left;
+
+            Object.assign(this.dropAfterBox.style, {
+                position: 'fixed',
+                top: `${absoluteTop + domRect.height - 3}px`,
+                left: `${absoluteLeft}px`,
+                width: `${domRect.width}px`,
+                height: '6px',
+                pointerEvents: 'none',
+                zIndex: '999999',
+            });
+        });
     }
 
     addDropInsideHighlight() {
-        // remove other effects
         this.removeDropHighlight();
 
         if (!this.dropInsideBox) {
             this.dropInsideBox = document.createElement('div');
             this.dropInsideBox.classList.add('drop-inside-box');
-
-            // Append it to the body
+            this.dropInsideBox.style.pointerEvents = 'none';
             document.body.appendChild(this.dropInsideBox);
         }
-        this.matchingDomNode(this.dropInsideBox);
+
+        this.matchingDomNode(this.dropInsideBox, () => {
+            if (!this.dropInsideBox || !this.dropInsideBox.isConnected || !this.dropInsideBox.style || !this.domNode || !this.domNode.ownerDocument) return;
+            const domRect = this.domNode.getBoundingClientRect();
+            const iframe = this.domNode.ownerDocument.defaultView?.frameElement;
+            if (!iframe) return;
+
+            const iframeRect = iframe.getBoundingClientRect();
+            const absoluteTop = iframeRect.top + domRect.top;
+            const absoluteLeft = iframeRect.left + domRect.left;
+
+            Object.assign(this.dropInsideBox.style, {
+                position: 'fixed',
+                top: `${absoluteTop}px`,
+                left: `${absoluteLeft}px`,
+                width: `${domRect.width}px`,
+                height: `${domRect.height}px`,
+                pointerEvents: 'none',
+                zIndex: '999999',
+            });
+        });
     }
 
     removeDropHighlight() {
-        // remove drop inside
         if (this.dropInsideBox) {
             this.dropInsideBox.remove();
+            this.dropInsideBox = null;
         }
-        this.dropInsideBox = null;
-
-        // remove drop before
         if (this.dropBeforeBox) {
             this.dropBeforeBox.remove();
+            this.dropBeforeBox = null;
         }
-        this.dropBeforeBox = null;
-
-        // remove drop after
         if (this.dropAfterBox) {
             this.dropAfterBox.remove();
+            this.dropAfterBox = null;
         }
-        this.dropAfterBox = null;
     }
 
     addContainerHightlight() {

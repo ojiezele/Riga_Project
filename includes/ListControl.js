@@ -25,8 +25,8 @@ class ListControl {
                 <p>You can add/edit/delete list items belows...</p>
                 <div data-control="slist-container" class="list-group"></div>
                 <div class="d-flex justify-content-end align-items-center">
-                    <button class="btn btn-primary btn-sm mt-3 d-flex align-items-center" type="button" data-control="add-item">
-                        <span class="material-symbols-rounded me-2">add</span>
+                    <button class="btn btn-dark btn-sm mt-2 d-flex align-items-center gap-1 shadow-2xs" type="button" data-control="add-item" style="background:#09090b; border-color:#09090b; color:#fff; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px;">
+                        <span class="material-symbols-rounded" style="font-size:15px; width:15px; height:15px; line-height:15px;">add</span>
                         Add Item
                     </button>
                 </div>

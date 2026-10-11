@@ -3,11 +3,25 @@ import LandingPage from './components/LandingPage.jsx';
 import AuthPage from './components/AuthPage.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import EditorView from './components/EditorView.jsx';
+import PublishedSiteRenderer from './components/PublishedSiteRenderer.jsx';
 import { getLocalSaasState, saveLocalSaasState } from './utils/saasStorage.js';
 
 export default function App() {
     // Current active view: 'dashboard' is the MAIN ENTRY, 'landing', 'auth', or 'editor'
     const [currentView, setCurrentView] = useState('dashboard');
+    
+    // Check if visiting a published site directly via query param or route
+    const [publishedSiteId, setPublishedSiteId] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const siteQuery = params.get('site') || params.get('preview');
+            if (siteQuery) return siteQuery;
+            if (window.location.pathname.startsWith('/sites/')) {
+                return window.location.pathname.replace(/^\/sites\//, '').split('/')[0];
+            }
+        }
+        return null;
+    });
     
     // Authenticated User State (defaults to active workspace owner)
     const [user, setUser] = useState({
@@ -386,6 +400,29 @@ export default function App() {
     const handleEditorSaveSuccess = (updatedSite) => {
         loadSaasState();
     };
+
+    if (publishedSiteId) {
+        return (
+            <PublishedSiteRenderer 
+                siteId={publishedSiteId}
+                sites={saasData.sites || []}
+                onBackToDashboard={() => {
+                    setPublishedSiteId(null);
+                    if (typeof window !== 'undefined' && window.history && window.history.pushState) {
+                        window.history.pushState({}, '', '/');
+                    }
+                    setCurrentView('dashboard');
+                }}
+                onOpenEditorForSite={(site) => {
+                    setPublishedSiteId(null);
+                    if (typeof window !== 'undefined' && window.history && window.history.pushState) {
+                        window.history.pushState({}, '', '/');
+                    }
+                    handleOpenEditorForSite(site);
+                }}
+            />
+        );
+    }
 
     return (
         <div className="w-full h-full min-h-screen bg-slate-50 text-slate-900">

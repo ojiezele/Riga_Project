@@ -242,6 +242,56 @@ class Builder {
         clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
         clone.querySelectorAll('.hovering-box, .selected-box, .actions-box').forEach(el => el.remove());
 
+        // Ensure all media paths are absolute canonical paths so they render reliably anywhere
+        clone.querySelectorAll('img').forEach(img => {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('data:') && !src.startsWith('http://') && !src.startsWith('https://')) {
+                if (src.startsWith('image/icons/')) img.setAttribute('src', '/image/icons/' + src.substring(12));
+                else if (src.startsWith('icons/')) img.setAttribute('src', '/image/icons/' + src.substring(6));
+                else if (src.startsWith('image/')) img.setAttribute('src', '/' + src);
+                else if (src.startsWith('./image/')) img.setAttribute('src', '/' + src.substring(2));
+                else if (src.startsWith('uploads/')) img.setAttribute('src', '/' + src);
+                else if (!src.startsWith('/')) img.setAttribute('src', '/' + src);
+            }
+        });
+
+        // Stabilize in-page anchor hash links (#, #about, #contact) so they don't carry relative paths or redirect away
+        clone.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href');
+            if (href) {
+                const hashIdx = href.indexOf('#');
+                if (hashIdx !== -1) {
+                    const prefix = href.substring(0, hashIdx);
+                    if (prefix.includes('themes/') || prefix === '/' || prefix === './' || prefix.includes('riga.')) {
+                        a.setAttribute('href', href.substring(hashIdx));
+                    }
+                }
+            }
+        });
+
+        // Normalize background-image styles
+        clone.querySelectorAll('[style*="background"]').forEach(el => {
+            let style = el.getAttribute('style') || '';
+            style = style.replace(/url\((['"]?)(?:\.\/)?(?:image\/)?icons\/([^'")]+)\1\)/gi, 'url("/image/icons/$2")');
+            style = style.replace(/url\((['"]?)(?:\.\/)?image\/([^'")]+)\1\)/gi, 'url("/image/$2")');
+            style = style.replace(/url\((['"]?)(?:\.\/)?uploads\/([^'")]+)\1\)/gi, 'url("/uploads/$2")');
+            el.setAttribute('style', style);
+        });
+
+        // Ensure published layout has modern full horizontal width on desktop
+        const head = clone.querySelector('head');
+        if (head) {
+            const style = doc.createElement('style');
+            style.setAttribute('data-published-styles', 'true');
+            style.textContent = `
+                html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                .container { width: 100% !important; max-width: 1240px !important; margin-left: auto !important; margin-right: auto !important; }
+                [builder-element="CellElement"] .container { max-width: 100% !important; }
+                img { max-width: 100%; height: auto; }
+            `;
+            head.appendChild(style);
+        }
+
         return '<!DOCTYPE html>\n' + clone.outerHTML;
     }
 
@@ -376,14 +426,14 @@ class Builder {
 
         element.getActions().forEach(action => {
             var actionButton = document.createElement('button');
-            actionButton.setAttribute('class', 'p-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white text-gray-700 transition-all shadow-2xs');
+            actionButton.setAttribute('class', 'p-1.5 rounded-md bg-gray-100 hover:bg-black hover:text-white text-gray-700 transition-all flex items-center justify-center');
             actionButton.setAttribute('title', action.label);
             
-            let actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5"/></svg>`;
+            let actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5"/></svg>`;
             if (action.icon === 'delete' || action.label?.toLowerCase().includes('delete')) {
-                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
+                actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
             } else if (action.icon === 'content_copy' || action.label?.toLowerCase().includes('duplicate')) {
-                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+                actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
             }
             actionButton.innerHTML = actionSvg;
 

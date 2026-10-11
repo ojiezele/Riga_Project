@@ -18,8 +18,8 @@ class DescriptionImageControl {
                 <label class="form-label fw-semibold">${this.label}</label>
                 <div data-control="slist-container" class="list-group"></div>
                 <div class="d-flex justify-content-end align-items-center">
-                    <button class="btn btn-primary btn-sm mt-3 d-flex align-items-center" type="button" data-control="add-item">
-                        <span class="material-symbols-rounded me-2">add</span>
+                    <button class="btn btn-dark btn-sm mt-2 d-flex align-items-center gap-1 shadow-2xs" type="button" data-control="add-item" style="background:#09090b; border-color:#09090b; color:#fff; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px;">
+                        <span class="material-symbols-rounded" style="font-size:15px; width:15px; height:15px; line-height:15px;">add</span>
                         Add Item
                     </button>
                 </div>
@@ -56,32 +56,32 @@ class DescriptionImageControl {
                             <img style="max-width:100px; height:auto;" src="${
                               item.image_url || "image/1_2_placeholder.png"
                             }" />
-                            <div class="ms-2">
-                                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center mb-1" type="button" data-control="upload-image" data-index="${index}">
-                                    <span class="material-symbols-rounded">upload</span>
+                            <div class="ms-2 d-flex flex-column gap-1">
+                                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-1 rounded" type="button" data-control="upload-image" data-index="${index}" style="width:26px; height:26px; min-width:26px;" title="Upload Image">
+                                    <span class="material-symbols-rounded" style="font-size:15px; width:15px; height:15px; line-height:15px;">upload</span>
                                 </button>
-                                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center" type="button" data-control="remove-image" data-index="${index}">
-                                    <span class="material-symbols-rounded">delete</span>
+                                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-1 rounded" type="button" data-control="remove-image" data-index="${index}" style="width:26px; height:26px; min-width:26px;" title="Remove Image">
+                                    <span class="material-symbols-rounded" style="font-size:15px; width:15px; height:15px; line-height:15px;">delete</span>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div class="d-flex align-items-center mb-2">
-                        <label class="form-label fw-semibold small mb-1 me-2" style="flex: 1;">Title</label>
+                    <div class="d-flex align-items-center mb-1.5">
+                        <label class="form-label fw-semibold small mb-0 me-2" style="flex: 1; font-size:10px;">Title</label>
                         <input type="text" class="form-control form-control-sm" value="${
                           item.title || ""
-                        }" data-index="${index}" data-field="title" style="flex: 2;">
+                        }" data-index="${index}" data-field="title" style="flex: 2; height:26px; font-size:11px;">
                     </div>
-                    <div class="d-flex align-items-center mb-2">
-                        <label class="form-label fw-semibold small mb-1 me-2" style="flex: 1;">Text</label>
+                    <div class="d-flex align-items-center mb-1.5">
+                        <label class="form-label fw-semibold small mb-0 me-2" style="flex: 1; font-size:10px;">Text</label>
                         <input type="text" class="form-control form-control-sm" value="${
                           item.text || ""
-                        }" data-index="${index}" data-field="text" style="flex: 2;">
+                        }" data-index="${index}" data-field="text" style="flex: 2; height:26px; font-size:11px;">
                     </div>
                 </div>
-                <div class="mt-2 pt-2 border-top d-flex justify-content-end align-items-center">
-                    <button class="btn btn-danger btn-sm d-flex align-items-center px-1" type="button" data-control="remove-item" data-index="${index}">
-                        <span class="material-symbols-rounded">delete</span>
+                <div class="mt-2 pt-1 border-top d-flex justify-content-end align-items-center">
+                    <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded p-1" type="button" data-control="remove-item" data-index="${index}" style="width:24px; height:24px; min-width:24px; background:#fee2e2; border-color:#fecaca; color:#dc2626;" title="Delete Item">
+                        <span class="material-symbols-rounded" style="font-size:14px; width:14px; height:14px; line-height:14px;">delete</span>
                     </button>
                 </div>
                 <div class="position-absolute bottom-0 start-0 ms-2 mb-2 fw-semibold text-muted opacity-25" style="z-index: 0; pointer-events: none;font-size: 16px;">

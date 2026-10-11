@@ -3,8 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riga SaaS & Visual Builder</title>
-    <meta name="description" content="A complete React SaaS and drag-and-drop website builder platform.">
+    <title>Riga Studio - Visual Website & App Builder</title>
+    <meta name="description" content="Enterprise-grade drag-and-drop visual website and newsletter builder with customizable themes, responsive breakpoints, widgets, and self-contained exports.">
+    <meta property="og:title" content="Riga Studio - Visual Website & App Builder">
+    <meta property="og:description" content="Enterprise-grade drag-and-drop visual website and newsletter builder with customizable themes, responsive breakpoints, widgets, and self-contained exports.">
+
+    <script>
+        (function() {
+            try {
+                var currentFetch = window.fetch;
+                Object.defineProperty(window, 'fetch', {
+                    get: function() {
+                        return currentFetch;
+                    },
+                    set: function(fn) {
+                        currentFetch = fn;
+                    },
+                    configurable: true,
+                    enumerable: true
+                });
+            } catch (e) {}
+        })();
+    </script>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">

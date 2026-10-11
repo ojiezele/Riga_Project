@@ -20,20 +20,16 @@ class RangeControl {
 
   render() {
     this.domNode.innerHTML = `
-      <div class="py-2 px-3">
-        <h4 class="form-label fw-semibold">${this.label}</h4>
-          <div class="d-flex justify-content-between align-items-center mb-2 me-4">
-              <p class="mb-0 me-2">${this.min}${this.unit}</p>
-              <p class="mb-0 me-2">${this.max}${this.unit}</p>
-          </div>
-          <div class="d-flex">
-              <div class="flex-grow-1">
-                <input type="range" min="${this.min}" max="${this.max}" step="${this.step}" value="${this.value}" class="form-range slider w-100" id="${this.id}">
-              </div>
-              <div style="min-width: 50px; text-align: right;">
-                <label for="${this.id}" class="form-label ms-2 mb-0">${this.value}${this.unit}</label>
-              </div>
-          </div>
+      <div class="p-3 bg-white">
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="text-xs font-bold uppercase tracking-wider text-gray-700 m-0">${this.label}</label>
+          <span class="text-xs font-bold text-gray-900 px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200" id="label-${this.id}">${this.value}${this.unit}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-semibold text-gray-400 shrink-0">${this.min}${this.unit}</span>
+          <input type="range" min="${this.min}" max="${this.max}" step="${this.step}" value="${this.value}" class="w-full cursor-pointer" id="${this.id}">
+          <span class="text-[10px] font-semibold text-gray-400 shrink-0">${this.max}${this.unit}</span>
+        </div>
       </div>
     `;
   }
@@ -44,7 +40,7 @@ class RangeControl {
   setValue(newValue) {
     this.value = newValue;
     const rangeInput = this.domNode.querySelector(`input[type="range"]`);
-    const valueLabel = this.domNode.querySelector(`label[for="${this.id}"]`);
+    const valueLabel = this.domNode.querySelector(`#label-${this.id}`) || this.domNode.querySelector(`label[for="${this.id}"]`);
 
     if (rangeInput) {
       rangeInput.value = newValue;
@@ -59,7 +55,7 @@ class RangeControl {
 
   setupEventListeners() {
     const rangeInput = this.domNode.querySelector(`input[type="range"]`);
-    const valueLabel = this.domNode.querySelector(`label[for="${this.id}"]`);
+    const valueLabel = this.domNode.querySelector(`#label-${this.id}`) || this.domNode.querySelector(`label[for="${this.id}"]`);
 
     // Debounce variables
     let debounceTimeout = null;

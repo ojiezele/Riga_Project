@@ -24,9 +24,9 @@ class SelectControl {
                 </div>
                 <div data-control="slist-container" class="list-group"></div>
                 <div class="d-flex justify-content-end align-items-center">
-                    <button class="btn btn-primary btn-sm mt-3 d-flex align-items-center" 
-                            type="button" data-control="add-item">
-                        <span class="material-symbols-rounded me-2">add</span>
+                    <button class="btn btn-dark btn-sm mt-2 d-flex align-items-center gap-1 shadow-2xs" 
+                            type="button" data-control="add-item" style="background:#09090b; border-color:#09090b; color:#fff; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px;">
+                        <span class="material-symbols-rounded" style="font-size:15px; width:15px; height:15px; line-height:15px;">add</span>
                         Add Item
                     </button>
                 </div>
@@ -66,9 +66,9 @@ class SelectControl {
                         }" data-index="${index}" data-field="value" style="flex: 2;">
                     </div>
                 </div>
-                <div class="mt-2 pt-2 border-top d-flex justify-content-end align-items-center">
-                    <button class="btn btn-danger btn-sm d-flex align-items-center px-1" type="button" data-control="remove-item" data-index="${index}">
-                        <span class="material-symbols-rounded">delete</span>
+                <div class="mt-2 pt-1 border-top d-flex justify-content-end align-items-center">
+                    <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded p-1" type="button" data-control="remove-item" data-index="${index}" style="width:24px; height:24px; min-width:24px; background:#fee2e2; border-color:#fecaca; color:#dc2626;" title="Delete Item">
+                        <span class="material-symbols-rounded" style="font-size:14px; width:14px; height:14px; line-height:14px;">delete</span>
                     </button>
                 </div>
                 <div class="position-absolute bottom-0 start-0 ms-2 mb-2 fw-semibold text-muted opacity-25" style="z-index: 0; pointer-events: none;font-size: 16px;">

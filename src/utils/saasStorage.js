@@ -176,18 +176,43 @@ export const DEFAULT_SAAS_STATE = {
 };
 
 export function getLocalSaasState() {
+  let state = DEFAULT_SAAS_STATE;
   try {
     const raw = localStorage.getItem(SAAS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.sites)) {
-        return parsed;
+        state = parsed;
       }
     }
   } catch (e) {
     // localStorage not accessible
   }
-  return DEFAULT_SAAS_STATE;
+
+  // Ensure subdomains use current AI Studio host if window is defined
+  if (typeof window !== 'undefined' && window.location && window.location.host) {
+    const host = window.location.host;
+    if (state.sites) {
+      state.sites = state.sites.map(s => {
+        if (s.subdomain && s.subdomain.includes('riga.site')) {
+          const prefix = s.subdomain.split('.')[0];
+          return { ...s, subdomain: `${prefix}.${host}` };
+        }
+        return s;
+      });
+    }
+    if (state.domains) {
+      state.domains = state.domains.map(d => {
+        if (d.domain && d.domain.includes('riga.site')) {
+          const prefix = d.domain.split('.')[0];
+          return { ...d, domain: `${prefix}.${host}` };
+        }
+        return d;
+      });
+    }
+  }
+
+  return state;
 }
 
 export function saveLocalSaasState(state) {

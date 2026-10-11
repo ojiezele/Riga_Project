@@ -56,6 +56,7 @@ export default function Dashboard({
     const [mediaTitle, setMediaTitle] = useState('');
     const [mediaUrl, setMediaUrl] = useState('');
     const [mediaCategory, setMediaCategory] = useState('Hero Banners');
+    const [mediaUploading, setMediaUploading] = useState(false);
 
     // Filter states
     const [mediaCategoryFilter, setMediaCategoryFilter] = useState('All');
@@ -133,6 +134,31 @@ export default function Dashboard({
                 setShowAddDomainModal(false);
             }, 900);
         }, 1200);
+    };
+
+    const handleMediaFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setMediaUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/asset-upload.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.url) {
+                setMediaUrl(data.url);
+                if (!mediaTitle.trim()) {
+                    setMediaTitle(file.name.replace(/\.[^/.]+$/, ""));
+                }
+            }
+        } catch (err) {
+            console.error('Error uploading file to media library:', err);
+        } finally {
+            setMediaUploading(false);
+        }
     };
 
     const handleUploadMediaSubmit = (e) => {
@@ -453,11 +479,19 @@ export default function Dashboard({
                                                 <div>
                                                     <h3 className="font-bold text-base text-gray-900 truncate max-w-[200px]">{site.name}</h3>
                                                     <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                                                        <span>{site.subdomain}</span>
+                                                        <a 
+                                                            href={typeof window !== 'undefined' ? `${window.location.origin}/sites/${site.id}` : `https://${site.subdomain}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-gray-600 hover:text-black hover:underline truncate max-w-[180px] font-mono text-[11px]"
+                                                            title={`Visit live site: ${typeof window !== 'undefined' ? window.location.origin : ''}/sites/${site.id}`}
+                                                        >
+                                                            {site.subdomain}
+                                                        </a>
                                                         <button 
-                                                            onClick={() => copyToClipboard(`https://${site.subdomain}`, site.id)}
+                                                            onClick={() => copyToClipboard(typeof window !== 'undefined' ? `${window.location.origin}/sites/${site.id}` : `https://${site.subdomain}`, site.id)}
                                                             className="text-gray-400 hover:text-black"
-                                                            title="Copy"
+                                                            title="Copy live site URL"
                                                         >
                                                             {copiedDomain === site.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                                                         </button>
@@ -1319,6 +1353,47 @@ export default function Dashboard({
                         <p className="text-xs text-gray-500 mb-5">Add high-resolution images or graphic assets to your media library.</p>
 
                         <form onSubmit={handleUploadMediaSubmit} className="space-y-4">
+                            {/* Drag & drop / click file upload dropzone */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Upload File (PNG, JPG, SVG, WebP)</label>
+                                <label className="border-2 border-dashed border-gray-200 hover:border-black rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-gray-50/50 hover:bg-gray-50">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handleMediaFileSelect}
+                                        className="hidden" 
+                                    />
+                                    {mediaUploading ? (
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                                            <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                                            <span>Uploading image asset...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center">
+                                            <UploadCloud className="w-6 h-6 text-gray-400 mx-auto mb-1.5" />
+                                            <p className="text-xs font-semibold text-gray-800">Click to choose image file</p>
+                                            <p className="text-[10px] text-gray-500">Supports PNG, JPG, SVG, WebP up to 10MB</p>
+                                        </div>
+                                    )}
+                                </label>
+                            </div>
+
+                            {/* Preview if uploaded or URL set */}
+                            {mediaUrl && (
+                                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                                    <img 
+                                        src={mediaUrl} 
+                                        alt="Preview" 
+                                        className="w-12 h-12 rounded-lg object-cover bg-white border border-gray-200 shrink-0" 
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-gray-900 truncate">{mediaTitle || 'Image Asset'}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono truncate">{mediaUrl}</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 mb-1">Title</label>
                                 <input 
@@ -1332,13 +1407,13 @@ export default function Dashboard({
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">URL</label>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Asset URL</label>
                                 <input 
-                                    type="url"
+                                    type="text"
                                     required
                                     value={mediaUrl}
                                     onChange={(e) => setMediaUrl(e.target.value)}
-                                    placeholder="https://images.unsplash.com/..."
+                                    placeholder="https://images.unsplash.com/... or /uploads/..."
                                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
                                 />
                             </div>
@@ -1360,17 +1435,18 @@ export default function Dashboard({
                             <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
                                 <button 
                                     type="button" 
-                                    onClick={() => setShowUploadMediaModal(false)}
+                                    onClick={() => { setShowUploadMediaModal(false); setMediaUrl(''); setMediaTitle(''); }}
                                     className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-900"
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="px-5 py-2.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5 transition-colors"
+                                    disabled={mediaUploading || !mediaUrl.trim()}
+                                    className="px-5 py-2.5 rounded-xl bg-black hover:bg-neutral-800 disabled:opacity-50 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5 transition-colors"
                                 >
                                     <UploadCloud className="w-3.5 h-3.5" />
-                                    <span>Upload</span>
+                                    <span>{mediaUploading ? 'Uploading...' : 'Save Media'}</span>
                                 </button>
                             </div>
                         </form>
@@ -1556,6 +1632,15 @@ export default function Dashboard({
                         </div>
 
                         <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                            <a 
+                                href={typeof window !== 'undefined' ? `${window.location.origin}/sites/${previewSite.id}` : `/sites/${previewSite.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold flex items-center gap-1.5 border border-gray-200 shadow-2xs text-decoration-none"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Open Full Website</span>
+                            </a>
                             <button 
                                 onClick={() => {
                                     setShowLivePreviewModal(false);
@@ -1577,9 +1662,9 @@ export default function Dashboard({
                     </div>
 
                     {/* Preview Viewport Frame */}
-                    <div className="flex-1 bg-gray-100 p-2 sm:p-6 overflow-auto flex items-center justify-center">
+                    <div className={`flex-1 overflow-auto flex items-center justify-center ${previewDevice === 'desktop' ? 'bg-white p-0' : 'bg-gray-100 p-2 sm:p-6'}`}>
                         <div 
-                            className="bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 border border-gray-300 h-full max-w-full"
+                            className={`bg-white transition-all duration-300 h-full max-w-full ${previewDevice === 'desktop' ? 'w-full rounded-none shadow-none border-0' : 'rounded-2xl shadow-2xl overflow-hidden border border-gray-300'}`}
                             style={{
                                 width: previewDevice === 'desktop' ? '100%' : previewDevice === 'tablet' ? '768px' : '375px'
                             }}

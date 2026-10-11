@@ -10,6 +10,7 @@ class UIManager {
 
         this.draggingItem = null;
         this.activeDropElement = null;
+        this.isDropBefore = false;
     }
 
     init() {
@@ -28,9 +29,29 @@ class UIManager {
             this.mouseout(this.builder.pageElement);
         });
 
-        // Global dragover & drop listeners on iframe, document, and body so dragging from outside always works
         const iframe = this.builder.iframe;
         const iframeDoc = this.builder.iframeDoc;
+
+        // Helper to locate which block in the canvas the pointer is hovering over
+        const resolveTargetElement = (e) => {
+            if (!e || !e.target) return this.builder.pageElement;
+            const targetNode = e.target;
+            const blockNode = targetNode.closest ? targetNode.closest('[builder-element="BlockElement"]') : null;
+            if (blockNode) {
+                const found = this.elements.find(el => el.domNode === blockNode);
+                if (found) return found;
+            }
+            const anyBuilderNode = targetNode.closest ? targetNode.closest('[builder-element]') : null;
+            if (anyBuilderNode) {
+                const found = this.elements.find(el => el.domNode === anyBuilderNode);
+                if (found) {
+                    if (found.getClassName() === 'BlockElement') return found;
+                    if (found.container && found.container.getClassName?.() === 'BlockElement') return found.container;
+                    return found;
+                }
+            }
+            return this.builder.pageElement;
+        };
 
         if (iframe) {
             iframe.addEventListener('dragover', (e) => {
@@ -43,12 +64,28 @@ class UIManager {
             iframeDoc.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (!this.draggingItem) return;
+
+                const targetEl = resolveTargetElement(e);
+                this.dragOver(targetEl, e);
+            });
+
+            iframeDoc.addEventListener('dragleave', (e) => {
+                // If leaving iframe entirely, remove drop highlights
+                if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= iframeDoc.documentElement.clientWidth || e.clientY >= iframeDoc.documentElement.clientHeight) {
+                    if (this.activeDropElement) {
+                        this.activeDropElement.removeDropHighlight?.();
+                        this.activeDropElement = null;
+                    }
+                }
             });
 
             iframeDoc.addEventListener('drop', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (this.draggingItem) {
-                    this.drop(this.builder.pageElement, e);
+                    const targetEl = resolveTargetElement(e);
+                    this.drop(targetEl || this.activeDropElement || this.builder.pageElement, e);
                 }
             });
 
@@ -65,15 +102,18 @@ class UIManager {
             pageDom.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                if (!this.activeDropElement) {
-                    this.dragOver(this.builder.pageElement, e);
-                }
+                if (!this.draggingItem) return;
+
+                const targetEl = resolveTargetElement(e);
+                this.dragOver(targetEl, e);
             });
 
             pageDom.addEventListener('drop', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (this.draggingItem) {
-                    this.drop(this.activeDropElement || this.builder.pageElement, e);
+                    const targetEl = resolveTargetElement(e);
+                    this.drop(targetEl || this.activeDropElement || this.builder.pageElement, e);
                 }
             });
         }
@@ -101,26 +141,33 @@ class UIManager {
             this.mouseout(element);
         });
 
-        // Droppable elements
-        if (element.isDroppable()) {
-            element.domNode.addEventListener('dragover', (e) => {
+        // Always allow dragover on canvas elements so HTML5 drag never shows 🚫 not-allowed cursor
+        element.domNode.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+
+            if (this.draggingItem) {
+                e.stopPropagation();
+                const target = element.getClassName() === 'BlockElement' ? element : (element.container?.getClassName?.() === 'BlockElement' ? element.container : element);
+                this.dragOver(target, e);
+            }
+        });
+
+        element.domNode.addEventListener('dragleave', (e) => {
+            e.stopPropagation();
+            if (this.activeDropElement === element) {
+                // Let the next dragover handle transition
+            }
+        });
+
+        element.domNode.addEventListener('drop', (e) => {
+            if (this.draggingItem) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                this.dragOver(element, e);
-            });
-
-            element.domNode.addEventListener('dragleave', (e) => {
-                e.stopPropagation();
-                this.dragLeave(element);
-            });
-
-            element.domNode.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.drop(element, e);
-            });
-        }
+                const target = element.getClassName() === 'BlockElement' ? element : (element.container?.getClassName?.() === 'BlockElement' ? element.container : element);
+                this.drop(target, e);
+            }
+        });
 
         // Select element on click
         element.domNode.addEventListener('click', (e) => {
@@ -203,6 +250,7 @@ class UIManager {
         this.draggingItem = draggableItem;
         this.dragOveringElements = [];
         this.activeDropElement = null;
+        this.isDropBefore = false;
     }
 
     cleanupDrag() {
@@ -221,6 +269,7 @@ class UIManager {
         if (this.builder.pageElement) {
             this.builder.pageElement.removeDropHighlight?.();
         }
+        document.querySelectorAll('.drop-before-box, .drop-after-box, .drop-inside-box, .container-drop-box').forEach(el => el.remove());
     }
 
     // Direct insertion helper (usable by click or programmatic drops)
@@ -259,21 +308,16 @@ class UIManager {
         if (element.canDropAfter?.() || element.canDropBefore?.()) {
             const rect = element.domNode.getBoundingClientRect();
             const isBefore = (e.clientY - rect.top) < (rect.height / 2);
+            this.isDropBefore = isBefore;
 
             if (isBefore && element.canDropBefore?.()) {
                 element.addDropBeforeHighlight?.();
             } else if (element.canDropAfter?.()) {
                 element.addDropAfterHighlight?.();
             }
-
-            if (element.container?.addContainerDropHightlight) {
-                element.container.addContainerDropHightlight();
-            }
         } else if (element.canDropInside?.()) {
+            this.isDropBefore = false;
             element.addDropInsideHighlight?.();
-            if (element.container?.addContainerDropHightlight) {
-                element.container.addContainerDropHightlight();
-            }
         }
     }
 
@@ -302,7 +346,7 @@ class UIManager {
 
         if (target.canDropAfter?.() || target.canDropBefore?.()) {
             const rect = target.domNode ? target.domNode.getBoundingClientRect() : { top: 0, height: 100 };
-            const isBefore = (e.clientY - rect.top) < (rect.height / 2);
+            const isBefore = this.isDropBefore !== null ? this.isDropBefore : ((e.clientY - rect.top) < (rect.height / 2));
 
             const container = target.container || this.builder.pageElement;
             if (isBefore && target.canDropBefore?.()) {

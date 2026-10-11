@@ -12,12 +12,12 @@
     letter-spacing: -0.02em;
   }
 
-  button, .btn-luxury {
-    border-radius: 9999px !important;
+  .btn-luxury {
+    border-radius: 9999px;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  button:hover:not(:disabled), .btn-luxury:hover:not(:disabled) {
+  .btn-luxury:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   }

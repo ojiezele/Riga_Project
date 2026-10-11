@@ -4,7 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build",
+    "dev:server": "node backend/server.js",
+    "build:client": "vite build",
+    "build:server": "echo 'Backend API ready for Render'",
+    "build": "npm run build:client",
+    "start": "node backend/server.js",
     "lint": "vite build"
   },
   "devDependencies": {
@@ -12,6 +16,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1149.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.23.1",

@@ -84,21 +84,19 @@ class BackgroundControl {
             <span class="input-group-text">%</span>
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Position:</label>
-          <div class="position-relative" style="border: 1px solid #dee2e6; border-radius: 4px; height: 150px; background-color: #f8f9fa;">
-            <div id="positionSlider_${this.id}" class="position-absolute" 
-                 style="width: 20px; height: 20px; background-color: #0d6efd; border-radius: 50%; cursor: move; transform: translate(-50%, -50%); 
-                        left: ${this.getPositionX()}%; top: ${this.getPositionY()}%; z-index: 1;">
-            </div>
-            <div class="position-absolute" style="left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; width: 90%; height: 90%; border-radius: 3px;">
-            </div>
-            <div class="small text-muted position-absolute" style="top: 5px; left: 10px;">Top-left</div>
-            <div class="small text-muted position-absolute" style="top: 5px; right: 10px;">Top-right</div>
-            <div class="small text-muted position-absolute" style="bottom: 5px; left: 10px;">Bottom-left</div>
-            <div class="small text-muted position-absolute" style="bottom: 5px; right: 10px;">Bottom-right</div>
-            <div class="small text-muted position-absolute" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">Center</div>
-          </div>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="me-2 small" style="font-size: 11px;">Position:</span>
+          <select class="form-select form-select-sm" id="bgPosition_${this.id}" style="width: 65%; min-width: 120px; font-size: 11px; padding: 3px 6px;">
+            <option value="center" ${this.position === "center" ? "selected" : ""}>Center</option>
+            <option value="top" ${this.position === "top" ? "selected" : ""}>Top Center</option>
+            <option value="bottom" ${this.position === "bottom" ? "selected" : ""}>Bottom Center</option>
+            <option value="left" ${this.position === "left" ? "selected" : ""}>Left</option>
+            <option value="right" ${this.position === "right" ? "selected" : ""}>Right</option>
+            <option value="top-left" ${this.position === "top-left" ? "selected" : ""}>Top Left</option>
+            <option value="top-right" ${this.position === "top-right" ? "selected" : ""}>Top Right</option>
+            <option value="bottom-left" ${this.position === "bottom-left" ? "selected" : ""}>Bottom Left</option>
+            <option value="bottom-right" ${this.position === "bottom-right" ? "selected" : ""}>Bottom Right</option>
+          </select>
         </div>
        <div class="d-flex align-items-center justify-content-between mb-3">
         <span class="me-2">Repeat Image:</span>
@@ -281,6 +279,22 @@ class BackgroundControl {
         }
       });
     }
+
+    // Position dropdown
+    const positionSelect = this.domNode.querySelector(
+      "#bgPosition_" + this.id
+    );
+    if (positionSelect) {
+      positionSelect.addEventListener("change", (e) => {
+        this.position = e.target.value;
+        if (
+          this.callback &&
+          typeof this.callback.setBackground === "function"
+        ) {
+          this.callback.setBackground(this.getValues());
+        }
+      });
+    }
   }
 
   getValues() {
@@ -333,7 +347,11 @@ class BackgroundControl {
       if (values.position !== undefined) {
         this.position = values.position;
 
-        // Use the correct slider instead of non-existent element
+        const positionSelect = this.domNode.querySelector(`#bgPosition_${this.id}`);
+        if (positionSelect) {
+          positionSelect.value = this.position;
+        }
+
         const slider = this.domNode.querySelector(`#positionSlider_${this.id}`);
         if (slider) {
           slider.style.left = `${this.getPositionX()}%`;

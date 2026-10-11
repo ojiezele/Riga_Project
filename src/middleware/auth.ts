@@ -5,7 +5,10 @@ import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: DecodedIdToken | any;
+  tenant?: any;
 }
+export type AuthenticatedRequest = AuthRequest;
+export const oidcAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => requireAuth(req, res, next);
 
 export const requireAuth = async (
   req: AuthRequest,

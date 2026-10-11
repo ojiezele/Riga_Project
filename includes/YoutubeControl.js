@@ -22,7 +22,7 @@ class YoutubeControl {
                     </div>
                 </div>
                 <div class="mt-3">
-                    <button data-control="save" type="button" class="btn btn-primary h-100">Save</button>
+                    <button data-control="save" type="button" class="btn btn-dark h-100">Save</button>
                 </div>
             </div>
         `;
