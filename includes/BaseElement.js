@@ -75,16 +75,29 @@ class BaseElement {
         ];
     }
 
+    getBuilder() {
+        if (this.builder) return this.builder;
+        if (typeof window !== 'undefined' && window.builder) return window.builder;
+        if (typeof builder !== 'undefined' && builder) return builder;
+        return null;
+    }
+
     renderTemplate(template, options={}) {
-        return builder.renderTemplate(template, options);
+        const b = this.getBuilder();
+        if (b && typeof b.renderTemplate === 'function') {
+            return b.renderTemplate(template, options);
+        }
+        return `<div builder-element="${template}">${options.elements || options.text || ''}</div>`;
     }
 
     duplicate() {
         var cloned = ElementFactory.createElement(this.getData());
         this.container.insertElementAfter(this, cloned);
 
-        // @todo: dependency
-        builder.selectElement(cloned);
+        const b = this.getBuilder();
+        if (b && typeof b.selectElement === 'function') {
+            b.selectElement(cloned);
+        }
     }
 
     fadeOut(duration = 300, callback) {
@@ -172,8 +185,9 @@ class BaseElement {
     }
 
     remove() {
-        if (builder.getSelectedElement() === this) {
-            builder.unselect();
+        const b = this.getBuilder();
+        if (b && typeof b.getSelectedElement === 'function' && b.getSelectedElement() === this) {
+            b.unselect();
         }
 
         // remove all effects
@@ -184,19 +198,25 @@ class BaseElement {
         this.removeContainerDropHightlight();
 
         this.fadeOut(300, () => {
-            this.container.removeElement(this);
+            if (this.container && typeof this.container.removeElement === 'function') {
+                this.container.removeElement(this);
+            }
 
-            // remove alement from all
-            builder.uiManager.removeDraggableItem(this);
-            builder.uiManager.removeElement(this);
-            builder.uiManager.dragOveringElements = [];
-            builder.uiManager.hoveringElements = [];
+            // remove element from all
+            const b2 = this.getBuilder();
+            if (b2 && b2.uiManager) {
+                b2.uiManager.removeDraggableItem(this);
+                b2.uiManager.removeElement(this);
+                b2.uiManager.dragOveringElements = [];
+                b2.uiManager.hoveringElements = [];
+            }
         });
     }
 
     getFullUrl(url)
     {
-        return builder.getFullUrl(url);
+        const b = this.getBuilder();
+        return (b && typeof b.getFullUrl === 'function') ? b.getFullUrl(url) : url;
     }
 
     /* Matching Position & Size of domNode and the box */
@@ -454,7 +474,8 @@ class BaseElement {
                 icon: 'arrow_circle_up',
                 label: 'Select Parent',
                 run: () => {
-                    builder.selectElement(this.container); // @todo dependency
+                    const b = this.getBuilder();
+                    if (b && typeof b.selectElement === 'function') b.selectElement(this.container);
                 }
             });
         }
@@ -463,7 +484,8 @@ class BaseElement {
             icon: 'remove_selection',
             label: 'Unselect',
             run: () => {
-                builder.unselect();
+                const b = this.getBuilder();
+                if (b && typeof b.unselect === 'function') b.unselect();
             }
         });
 

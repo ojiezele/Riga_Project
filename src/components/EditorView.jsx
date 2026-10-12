@@ -280,11 +280,16 @@ export default function EditorView({
                 try {
                     await fetch('/api/saas/sites', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-user-id': site?.userId || ''
+                        },
                         body: JSON.stringify({
                             id: site?.id,
                             name: siteTitle,
+                            theme: site?.theme || 'standard/Y1_a_1_Column_Layout',
                             status: 'draft',
+                            userId: site?.userId,
                             htmlContent: html,
                             jsonData: data
                         })
@@ -292,7 +297,7 @@ export default function EditorView({
                 } catch (e) {
                     console.error('Error syncing draft with saas db:', e);
                 }
-                notify('Draft saved to cloud storage!');
+                notify('Draft saved to Cloudflare R2 & Neon DB!');
                 if (onSaveSuccess) onSaveSuccess({ ...site, name: siteTitle, status: 'draft', htmlContent: html, jsonData: data });
             } else {
                 notify('Error saving draft: ' + (resData.message || 'Unknown'), 'error');
@@ -324,11 +329,17 @@ export default function EditorView({
 
             const res = await fetch('/api/saas/sites', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-user-id': site?.userId || ''
+                },
                 body: JSON.stringify({
                     id: site?.id,
                     name: siteTitle,
+                    theme: site?.theme || 'standard/Y1_a_1_Column_Layout',
                     status: 'published',
+                    userId: site?.userId,
+                    subdomain: siteSubdomain,
                     htmlContent: compilation.compiledHtml,
                     jsonData: compilation.jsonAst,
                     versionHash: compilation.versionHash,

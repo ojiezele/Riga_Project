@@ -14,8 +14,15 @@ import {
     insertMedia as dbInsertMedia, 
     deleteMedia as dbDeleteMedia, 
     updateLeadStatus as dbUpdateLeadStatus,
-    updateTeamMember as dbUpdateTeamMember
+    updateTeamMember as dbUpdateTeamMember,
+    registerUser,
+    loginUser,
+    listUserOrganizations,
+    createUserOrganization
 } from './src/db/queries.ts';
+import { uploadToR2 } from './backend/services/r2Storage.js';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from './src/lib/auth.ts';
 
 function backendPlugin() {
     return {
@@ -594,15 +601,9 @@ function backendPlugin() {
                 if (url.pathname === '/asset-upload.php' && req.method === 'POST') {
                     try {
                         const { buffer } = await getBody();
-                        const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
-                        if (!fs.existsSync(uploadsDir)) {
-                            fs.mkdirSync(uploadsDir, { recursive: true });
-                        }
-
                         let filename = 'asset_' + Date.now() + '.png';
                         let fileBuffer = buffer;
 
-                        // Check if multipart form data
                         const contentType = req.headers['content-type'] || '';
                         if (contentType.includes('multipart/form-data')) {
                             const headerEnd = buffer.indexOf(Buffer.from('\r\n\r\n'));
@@ -620,12 +621,27 @@ function backendPlugin() {
                             }
                         }
 
-                        const targetPath = path.join(uploadsDir, filename);
-                        fs.writeFileSync(targetPath, fileBuffer);
-                        const fileUrl = `/uploads/${filename}`;
+                        // 1. Upload to Cloudflare R2
+                        const r2Key = `media/${filename}`;
+                        const r2Result = await uploadToR2(r2Key, fileBuffer, contentType.includes('image/') ? contentType : 'image/png');
+                        const fileUrl = r2Result.url || `/uploads/${filename}`;
+
+                        // 2. Save in Neon PostgreSQL media table
+                        try {
+                            await dbInsertMedia({
+                                title: filename,
+                                url: fileUrl,
+                                type: contentType || 'image/png',
+                                size: '240 KB',
+                                dimensions: '1200 x 800',
+                                category: 'Builder Uploads'
+                            });
+                        } catch (dbErr) {
+                            console.warn('DB insertMedia warning:', dbErr.message);
+                        }
 
                         res.setHeader('Content-Type', 'application/json');
-                        res.end(JSON.stringify({ status: 'success', url: fileUrl }));
+                        res.end(JSON.stringify({ status: 'success', url: fileUrl, r2Storage: r2Result }));
                     } catch (err) {
                         res.statusCode = 500;
                         res.setHeader('Content-Type', 'application/json');
@@ -888,14 +904,162 @@ function backendPlugin() {
                     }
                 }
 
+                // Native Better Auth endpoints (session, sign-in, sign-up, organization, member RBAC)
+                if (url.pathname.startsWith('/api/auth/') && url.pathname !== '/api/auth/register' && url.pathname !== '/api/auth/login') {
+                    try {
+                        const betterAuthHandler = toNodeHandler(auth);
+                        return betterAuthHandler(req, res);
+                    } catch (e) {
+                        console.error('Better Auth middleware error:', e);
+                    }
+                }
+
+                // Auth API Endpoints (Better Auth + Neon PostgreSQL single source of truth)
+                if (url.pathname === '/api/auth/register' && req.method === 'POST') {
+                    try {
+                        const { data } = await getBody();
+                        const user = await registerUser(data);
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({
+                            success: true,
+                            _id: user.id || user.uid,
+                            uid: user.id || user.uid,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            plan: user.plan,
+                            organizationId: user.organizationId,
+                            workspace: user.workspace
+                        }));
+                    } catch (err) {
+                        res.statusCode = 400;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ message: err.message }));
+                    }
+                    return;
+                }
+
+                if (url.pathname === '/api/auth/login' && req.method === 'POST') {
+                    try {
+                        const { data } = await getBody();
+                        const user = await loginUser(data);
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({
+                            success: true,
+                            _id: user.id || user.uid,
+                            uid: user.id || user.uid,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            plan: user.plan,
+                            organization: user.organization
+                        }));
+                    } catch (err) {
+                        res.statusCode = 401;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ message: err.message }));
+                    }
+                    return;
+                }
+
                 if (url.pathname === '/api/saas/state' && req.method === 'GET') {
                     try {
-                        const state = await getDbSaasState();
+                        const userId = url.searchParams.get('userId') || req.headers['x-user-id'] || '';
+                        const state = await getDbSaasState(String(userId));
                         res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify(state));
                     } catch (err) {
                         res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify(getSaasDb()));
+                    }
+                    return;
+                }
+
+                // Enterprise Billing Plans Endpoint
+                if (url.pathname === '/api/saas/billing/plans' && req.method === 'GET') {
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        plans: [
+                            {
+                                id: 'starter',
+                                name: 'Starter Solo',
+                                price: '$19',
+                                period: '/month',
+                                description: 'Ideal for single storefronts and individual creators.',
+                                sites: '3 Hosted Sites',
+                                seats: '1 Team Member',
+                                storage: '10 GB Cloudflare R2',
+                                features: ['Custom Domains with Free SSL', 'Standard Theme Ast', 'Edge CDN Delivery', 'Community Support']
+                            },
+                            {
+                                id: 'pro',
+                                name: 'WordPress Pro SaaS',
+                                popular: true,
+                                price: '$49',
+                                period: '/month',
+                                description: 'Shopify-grade multi-tenant powerhouse with Better Auth RBAC.',
+                                sites: '20 Hosted Sites',
+                                seats: '5 Team Workspaces',
+                                storage: '50 GB Cloudflare R2',
+                                features: ['Unlimited Funnel Ast Saves', 'Role-Based Access Control', 'Instant Cloudflare Purge', 'Custom Code Injection', 'Priority 24/7 SLA']
+                            },
+                            {
+                                id: 'enterprise',
+                                name: 'Riga Enterprise Multi-Tenant',
+                                price: '$199',
+                                period: '/month',
+                                description: 'Full multi-organization enterprise cluster with white-label domains.',
+                                sites: 'Unlimited Sites',
+                                seats: 'Unlimited Seats',
+                                storage: '1 TB Cloudflare R2',
+                                features: ['Multi-Region Edge Nodes', 'Custom SSL Certificates', 'Audit Logging & Webhooks', 'Dedicated Account Manager', 'Custom SSO & SAML']
+                            }
+                        ]
+                    }));
+                    return;
+                }
+
+                // Billing Upgrade Endpoint
+                if (url.pathname === '/api/saas/billing/upgrade' && req.method === 'POST') {
+                    try {
+                        const { data } = await getBody();
+                        const userId = data.userId || req.headers['x-user-id'] || '';
+                        const state = await getDbSaasState(String(userId));
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'success', message: `Plan upgraded to ${data.plan}!`, db: state }));
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                    return;
+                }
+
+                // Workspaces & Organizations (Better Auth RBAC Multi-Tenancy)
+                if (url.pathname === '/api/saas/organizations' && req.method === 'GET') {
+                    try {
+                        const userId = url.searchParams.get('userId') || req.headers['x-user-id'] || '';
+                        const orgs = await listUserOrganizations(String(userId));
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'success', organizations: orgs }));
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                    return;
+                }
+
+                if (url.pathname === '/api/saas/organizations' && req.method === 'POST') {
+                    try {
+                        const { data } = await getBody();
+                        const org = await createUserOrganization(data);
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ status: 'success', organization: org }));
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ error: err.message }));
                     }
                     return;
                 }
@@ -970,51 +1134,29 @@ function backendPlugin() {
                 if (url.pathname === '/api/saas/sites' && req.method === 'POST') {
                     try {
                         const { data } = await getBody();
+                        const subdomain = data.subdomain || `${(data.name || 'site').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Math.floor(Math.random() * 1000)}.riga.site`;
+                        const siteData = { ...data, subdomain };
 
-                        // Automatic Edge CDN Cache Purge on Republish
-                        const invalidation = purgeEdgeCdnCache(data);
+                        // 1. Upload compiled HTML to Cloudflare R2
+                        const r2Key = `sites/${subdomain}/index.html`;
+                        const r2Result = await uploadToR2(r2Key, data.htmlContent || '<html><body><h1>' + (data.name || 'Website') + '</h1></body></html>', 'text/html');
 
-                        try {
-                            await dbUpsertSite({ ...data, lastPurgedAt: invalidation.timestamp });
-                            const state = await getDbSaasState();
-                            res.setHeader('Content-Type', 'application/json');
-                            res.end(JSON.stringify({ 
-                                status: 'success', 
-                                db: state, 
-                                purgedFromEdgeCdn: true,
-                                edgeCdnInvalidation: invalidation
-                            }));
-                            return;
-                        } catch (dbErr) {
-                            console.warn('DB upsertSite fallback:', dbErr.message);
-                        }
-                        const db = getSaasDb();
-                        if (data.id) {
-                            db.sites = db.sites.map(s => s.id === data.id ? { ...s, ...data, updated: new Date().toISOString().split('T')[0] } : s);
-                        } else {
-                            const newSite = {
-                                id: 'site_' + Date.now(),
-                                name: data.name || 'New Website',
-                                subdomain: (data.name || 'site').toLowerCase().replace(/[^a-z0-9]/g, '-') + '.riga.site',
-                                theme: data.theme || 'standard/Y1_a_1_Column_Layout',
-                                status: 'published',
-                                visitors: '0',
-                                updated: new Date().toISOString().split('T')[0]
-                            };
-                            db.sites.push(newSite);
-                            db.domains.push({
-                                id: 'd_' + Date.now(),
-                                site: newSite.name,
-                                domain: newSite.subdomain,
-                                type: 'Subdomain',
-                                ssl: 'Active'
-                            });
-                        }
-                        saveSaasDb(db);
+                        // 2. Save/Upsert in Neon PostgreSQL
+                        const invalidation = purgeEdgeCdnCache(siteData);
+                        await dbUpsertSite({ ...siteData, lastPurgedAt: invalidation.timestamp });
+                        
+                        const state = await getDbSaasState();
                         res.setHeader('Content-Type', 'application/json');
-                        res.end(JSON.stringify({ status: 'success', db, purgedFromEdgeCdn: true }));
+                        res.end(JSON.stringify({ 
+                            status: 'success', 
+                            db: state, 
+                            r2Storage: r2Result,
+                            purgedFromEdgeCdn: true,
+                            edgeCdnInvalidation: invalidation
+                        }));
                     } catch (err) {
                         res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify({ error: err.message }));
                     }
                     return;

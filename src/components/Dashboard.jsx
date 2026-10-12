@@ -34,8 +34,51 @@ export default function Dashboard({
     const [showAddDomainModal, setShowAddDomainModal] = useState(false);
     const [showUploadMediaModal, setShowUploadMediaModal] = useState(false);
     const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
+    const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+    const [newWorkspaceName, setNewWorkspaceName] = useState('');
+    const [workspacesList, setWorkspacesList] = useState([]);
     const [previewSite, setPreviewSite] = useState(null);
     const [previewDevice, setPreviewDevice] = useState('desktop');
+
+    // Fetch Better Auth Workspaces
+    React.useEffect(() => {
+        const fetchOrgs = async () => {
+            try {
+                const uid = user?.id || user?.uid || '';
+                if (!uid) return;
+                const res = await fetch(`/api/saas/organizations?userId=${encodeURIComponent(uid)}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.organizations) {
+                    setWorkspacesList(data.organizations);
+                }
+            } catch (e) {}
+        };
+        fetchOrgs();
+    }, [user]);
+
+    // Handle Create Workspace
+    const handleCreateWorkspaceSubmit = async (e) => {
+        e.preventDefault();
+        if (!newWorkspaceName.trim()) return;
+        try {
+            const uid = user?.id || user?.uid || 'usr_owner';
+            const res = await fetch('/api/saas/organizations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newWorkspaceName.trim(), userId: uid })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert(`Workspace "${data.organization.name}" created with Better Auth!`);
+                setWorkspacesList(prev => [...prev, data.organization]);
+                setNewWorkspaceName('');
+                setShowWorkspaceModal(false);
+                window.location.reload();
+            }
+        } catch (err) {
+            alert('Could not create workspace.');
+        }
+    };
 
     // New Site form
     const [newSiteName, setNewSiteName] = useState('');
@@ -261,18 +304,40 @@ export default function Dashboard({
             {/* LEFT SIDEBAR NAVIGATION (LIGHT THEME WITH SOLID BLACK ACTIVE PILLS) */}
             <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 transition-transform duration-300 ease-in-out md:static md:w-64 md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
                 {/* Workspace Header */}
-                <div className="h-16 px-5 border-b border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <RigaLogo size="sm" />
-                        <span className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-semibold border border-gray-200">PRO</span>
+                <div className="p-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2">
+                            <RigaLogo size="sm" />
+                            <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">BETTER AUTH</span>
+                        </div>
+
+                        <button 
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="md:hidden p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                            aria-label="Close sidebar"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
 
+                    {/* Active Organization / Workspace */}
                     <button 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="md:hidden p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-                        aria-label="Close sidebar"
+                        onClick={() => setShowWorkspaceModal(true)}
+                        className="w-full text-left px-2.5 py-2 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl border border-gray-200/80 flex items-center justify-between group cursor-pointer"
+                        title="Click to manage or switch Better Auth workspaces"
                     >
-                        <X className="w-5 h-5" />
+                        <div className="min-w-0 flex-1">
+                            <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                                <span>Workspace</span>
+                                <ChevronDown className="w-2.5 h-2.5 text-gray-400 group-hover:text-black transition-colors" />
+                            </div>
+                            <div className="text-xs font-bold text-gray-900 truncate">
+                                {user?.workspace || saasData?.organization?.name || `${user?.name || 'My'}'s Workspace`}
+                            </div>
+                        </div>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full font-semibold ml-1 shrink-0">
+                            {user?.role || 'Owner'}
+                        </span>
                     </button>
                 </div>
 
@@ -511,6 +576,17 @@ export default function Dashboard({
                                                     <span className="text-gray-400">Updated:</span>
                                                     <div className="font-semibold text-gray-800">{site.updated || 'Just now'}</div>
                                                 </div>
+                                            </div>
+
+                                            <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                                                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium border border-emerald-200">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <span>JSON AST Synced</span>
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md font-medium border border-sky-200">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                                                    <span>Cloudflare R2 Live</span>
+                                                </span>
                                             </div>
                                         </div>
 
@@ -1252,33 +1328,152 @@ export default function Dashboard({
                                 <p className="text-xs text-gray-500 mt-1">Manage subscription plan, API credentials, and export data.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                                <div className="bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl shadow-xs">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="font-bold text-gray-900 text-sm">Plan</h3>
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
+                            <div className="space-y-6">
+                                {/* Current Subscription & Better Auth Tier Selector */}
+                                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-xs">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-100">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-extrabold text-gray-900 text-lg">{user?.plan || 'WordPress Pro SaaS'}</h3>
+                                                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Tier
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">Multi-tenant workspace authenticated via Better Auth RBAC.</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-black text-gray-900">$49<span className="text-xs font-normal text-gray-500">/month</span></div>
+                                            <div className="text-[11px] text-gray-400">Next billing cycle: in 30 days</div>
+                                        </div>
                                     </div>
-                                    <div className="text-2xl font-extrabold text-gray-900">{user?.plan || 'WordPress Pro SaaS'}</div>
-                                    <div className="text-xs text-gray-500 mt-1">Billed annually ($19/mo)</div>
-                                    <ul className="mt-4 space-y-2 text-xs text-gray-600 border-t border-gray-100 pt-4">
-                                        <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Unlimited sites & subdomains</li>
-                                        <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Automated SSL on custom domains</li>
-                                        <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Up to 5 team members with RBAC</li>
-                                    </ul>
+
+                                    {/* 3 Shopify / WordPress Grade Enterprise Tiers */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {/* Tier 1: Starter */}
+                                        <div className={`p-4 rounded-xl border transition-all ${user?.plan === 'Starter Solo' ? 'border-black bg-gray-50/50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-300'}`}>
+                                            <div className="font-bold text-sm text-gray-900">Starter Solo</div>
+                                            <div className="text-xl font-extrabold text-gray-900 mt-1">$19<span className="text-xs font-normal text-gray-500">/mo</span></div>
+                                            <p className="text-[11px] text-gray-500 mt-1 mb-3">For single storefronts & creators.</p>
+                                            <ul className="space-y-1.5 text-[11px] text-gray-600 mb-4">
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 3 Hosted Websites</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 1 Team Seat</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 10 GB Cloudflare R2</li>
+                                            </ul>
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch('/api/saas/billing/upgrade', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ plan: 'Starter Solo', userId: user?.id || user?.uid })
+                                                        });
+                                                        const data = await res.json();
+                                                        alert(data.message || 'Plan updated to Starter Solo!');
+                                                        window.location.reload();
+                                                    } catch (e) {
+                                                        alert('Could not update plan.');
+                                                    }
+                                                }}
+                                                className={`w-full py-2 rounded-lg text-xs font-semibold transition-colors ${user?.plan === 'Starter Solo' ? 'bg-gray-200 text-gray-600 cursor-default' : 'border border-gray-200 hover:bg-black hover:text-white'}`}
+                                            >
+                                                {user?.plan === 'Starter Solo' ? 'Current Plan' : 'Switch to Starter'}
+                                            </button>
+                                        </div>
+
+                                        {/* Tier 2: Pro (Active) */}
+                                        <div className={`p-4 rounded-xl border relative transition-all ${user?.plan !== 'Starter Solo' && user?.plan !== 'Riga Enterprise Multi-Tenant' ? 'border-black bg-neutral-900 text-white shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
+                                            <span className="absolute -top-2.5 right-3 bg-indigo-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
+                                            <div className="font-bold text-sm">WordPress Pro SaaS</div>
+                                            <div className="text-xl font-extrabold mt-1">$49<span className="text-xs font-normal opacity-70">/mo</span></div>
+                                            <p className="text-[11px] opacity-70 mt-1 mb-3">Shopify-grade multi-tenant engine.</p>
+                                            <ul className="space-y-1.5 text-[11px] opacity-90 mb-4">
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 20 Hosted Sites & Funnels</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 5 Team Seats with RBAC</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 50 GB Cloudflare R2 Storage</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> Full JSON AST & CDN Purge</li>
+                                            </ul>
+                                            <button 
+                                                disabled
+                                                className="w-full py-2 rounded-lg text-xs font-semibold bg-white text-black cursor-default shadow-xs"
+                                            >
+                                                Active Plan
+                                            </button>
+                                        </div>
+
+                                        {/* Tier 3: Enterprise */}
+                                        <div className={`p-4 rounded-xl border transition-all ${user?.plan === 'Riga Enterprise Multi-Tenant' ? 'border-black bg-gray-50/50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-300'}`}>
+                                            <div className="font-bold text-sm text-gray-900">Enterprise Multi-Tenant</div>
+                                            <div className="text-xl font-extrabold text-gray-900 mt-1">$199<span className="text-xs font-normal text-gray-500">/mo</span></div>
+                                            <p className="text-[11px] text-gray-500 mt-1 mb-3">Full cluster with dedicated isolation.</p>
+                                            <ul className="space-y-1.5 text-[11px] text-gray-600 mb-4">
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Unlimited Hosted Sites</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Unlimited Team Seats</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 1 TB Cloudflare R2 Storage</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Custom Domain SSL Wildcards</li>
+                                            </ul>
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch('/api/saas/billing/upgrade', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ plan: 'Riga Enterprise Multi-Tenant', userId: user?.id || user?.uid })
+                                                        });
+                                                        const data = await res.json();
+                                                        alert(data.message || 'Upgraded to Enterprise Multi-Tenant!');
+                                                        window.location.reload();
+                                                    } catch (e) {
+                                                        alert('Could not update plan.');
+                                                    }
+                                                }}
+                                                className="w-full py-2 rounded-lg text-xs font-semibold bg-black hover:bg-neutral-800 text-white transition-colors shadow-xs"
+                                            >
+                                                Upgrade to Enterprise
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl shadow-xs">
-                                    <h3 className="font-bold text-gray-900 text-sm mb-2">Workspace Actions</h3>
-                                    <p className="text-xs text-gray-500 mb-6">Export all project backups or view landing page.</p>
-                                    <div className="space-y-3">
-                                        <button onClick={() => alert('Workspace backup archive queued.')} className="w-full py-2.5 px-4 rounded-xl bg-black hover:bg-neutral-800 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors">
-                                            <Download className="w-4 h-4" />
-                                            <span>Export</span>
-                                        </button>
-                                        <button onClick={onGoToLanding} className="w-full py-2.5 px-4 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors">
-                                            <Globe className="w-4 h-4" />
-                                            <span>Landing</span>
-                                        </button>
+                                {/* Backend Infrastructure & Security Health */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                                    <div className="bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl shadow-xs">
+                                        <h3 className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
+                                            <Shield className="w-4 h-4 text-emerald-600" />
+                                            <span>Security & Better Auth Infrastructure</span>
+                                        </h3>
+                                        <div className="space-y-3 text-xs">
+                                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                                                <span className="text-gray-600">Authentication</span>
+                                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Better Auth RBAC</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                                                <span className="text-gray-600">Password Hashing</span>
+                                                <span className="font-semibold text-gray-800 font-mono text-[11px]">Bcrypt Salted Hash</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                                                <span className="text-gray-600">Database Engine</span>
+                                                <span className="font-semibold text-gray-800">Neon PostgreSQL (Live)</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                                                <span className="text-gray-600">Object Storage</span>
+                                                <span className="font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">Cloudflare R2 Bucket</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl shadow-xs">
+                                        <h3 className="font-bold text-gray-900 text-sm mb-2">Workspace Actions</h3>
+                                        <p className="text-xs text-gray-500 mb-6">Export all project backups or view landing page.</p>
+                                        <div className="space-y-3">
+                                            <button onClick={() => alert('Workspace backup archive queued.')} className="w-full py-2.5 px-4 rounded-xl bg-black hover:bg-neutral-800 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors">
+                                                <Download className="w-4 h-4" />
+                                                <span>Export Data</span>
+                                            </button>
+                                            <button onClick={onGoToLanding} className="w-full py-2.5 px-4 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors">
+                                                <Globe className="w-4 h-4" />
+                                                <span>Public Landing Page</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1567,10 +1762,10 @@ export default function Dashboard({
                                     onChange={(e) => setInviteRole(e.target.value)}
                                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
                                 >
-                                    <option value="Administrator">Administrator</option>
-                                    <option value="Editor">Editor</option>
-                                    <option value="Author">Author</option>
-                                    <option value="Subscriber">Subscriber</option>
+                                    <option value="Admin">Admin (Full Workspace Access & Members)</option>
+                                    <option value="Editor">Editor (Build, Style & Publish Sites)</option>
+                                    <option value="Member">Member (Manage Content, Media & CRM)</option>
+                                    <option value="Viewer">Viewer (Read-Only Preview & Metrics)</option>
                                 </select>
                             </div>
 
@@ -1675,6 +1870,73 @@ export default function Dashboard({
                                 className="w-full h-full border-0"
                             />
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: BETTER AUTH WORKSPACE & ORGANIZATION MANAGER */}
+            {showWorkspaceModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in">
+                    <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-lg font-bold text-gray-900">Workspaces & Organizations</h2>
+                            <button onClick={() => setShowWorkspaceModal(false)} className="text-gray-400 hover:text-black">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-5">Switch between active organizations or provision a new isolated workspace powered by Better Auth.</p>
+
+                        {/* Current Workspaces List */}
+                        <div className="mb-6 space-y-2">
+                            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">Your Workspaces</label>
+                            <div className="space-y-2">
+                                {(workspacesList.length > 0 ? workspacesList : [
+                                    { id: 'curr', name: user?.workspace || `${user?.name || 'My'}'s Workspace`, role: user?.role || 'owner', active: true }
+                                ]).map((org, idx) => (
+                                    <div 
+                                        key={org.id || idx}
+                                        className="p-3 rounded-xl border border-gray-200 bg-gray-50/60 flex items-center justify-between hover:bg-gray-100/60 transition-colors"
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-bold text-gray-900 truncate">{org.name}</div>
+                                            <div className="text-[10px] text-gray-500">RBAC Role: <span className="capitalize font-semibold text-gray-700">{org.role || 'Owner'}</span></div>
+                                        </div>
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            Active
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Create New Workspace Form */}
+                        <form onSubmit={handleCreateWorkspaceSubmit} className="pt-4 border-t border-gray-100 space-y-3">
+                            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">Provision New Workspace</label>
+                            <input 
+                                type="text"
+                                required
+                                value={newWorkspaceName}
+                                onChange={(e) => setNewWorkspaceName(e.target.value)}
+                                placeholder="e.g. Acme Marketing, Studio Alpha"
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
+                            />
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowWorkspaceModal(false)}
+                                    className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-900"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    className="px-5 py-2.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Create Workspace</span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

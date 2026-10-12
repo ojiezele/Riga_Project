@@ -66,8 +66,11 @@ class PageElement extends BaseElement {
             this.domNode.appendChild(domNode);
 
             //
-            builder.uiManager.addElement(block);
-            builder.uiManager.addDraggableItem(block);
+            const b = this.builder || (typeof window !== 'undefined' && window.builder) ? (this.builder || window.builder) : (typeof builder !== 'undefined' ? builder : null);
+            if (b && b.uiManager) {
+                b.uiManager.addElement(block);
+                b.uiManager.addDraggableItem(block);
+            }
         });
 
         // empty cell
@@ -267,10 +270,16 @@ class PageElement extends BaseElement {
         this.clear();
 
         // Set data from JSON representation
-        data.elementLists.forEach(elementList => {
-            const elements = elementList.map(ElementFactory.createElement);
-            this.appendElements(elements);
-        });
+        if (data && Array.isArray(data.elementLists)) {
+            data.elementLists.forEach(elementList => {
+                if (Array.isArray(elementList)) {
+                    const elements = elementList
+                        .map(item => ElementFactory.createElement(item))
+                        .filter(el => el != null);
+                    this.appendElements(elements);
+                }
+            });
+        }
 
         // formats
         if (data.formats) {

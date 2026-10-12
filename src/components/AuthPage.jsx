@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowRight, Lock, Mail, User, ShieldCheck, Sparkles, ArrowLeft } from 'lucide-react';
+import { ArrowRight, Lock, Mail, User, ShieldCheck, Sparkles, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import RigaLogo from './RigaLogo.jsx';
+import { authClient } from '../lib/auth-client.ts';
 
 export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
     const [mode, setMode] = useState('login'); // 'login' or 'register'
@@ -10,7 +11,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         if (!email || !password) {
@@ -19,38 +20,111 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
         }
 
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            const userObj = {
-                name: name || (email.split('@')[0]),
-                email: email,
-                role: 'Owner',
-                plan: 'WordPress Pro SaaS'
-            };
-            onLoginSuccess(userObj);
-        }, 600);
-    };
+        try {
+            if (mode === 'login') {
+                // Primary: Better Auth Client Sign In
+                const baRes = await authClient.signIn.email({
+                    email,
+                    password,
+                });
 
-    const handleQuickLogin = (demoRole) => {
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            if (demoRole === 'Owner') {
-                onLoginSuccess({
-                    name: 'Ojiezele',
-                    email: 'ojiezele0@gmail.com',
-                    role: 'Owner',
-                    plan: 'WordPress Pro SaaS'
+                if (baRes?.data?.user) {
+                    setLoading(false);
+                    onLoginSuccess({
+                        id: baRes.data.user.id,
+                        uid: baRes.data.user.id,
+                        name: baRes.data.user.name || email.split('@')[0],
+                        email: baRes.data.user.email || email,
+                        role: baRes.data.user.role || 'Owner',
+                        plan: baRes.data.user.plan || 'WordPress Pro SaaS',
+                        organizationId: baRes.data.user.organizationId,
+                        workspace: `${baRes.data.user.name || 'Owner'}'s Workspace`,
+                        token: baRes.data.token
+                    });
+                    return;
+                }
+
+                // If user exists in legacy records or needs auto-migration, hit seamless migration endpoint
+                const loginRes = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
                 });
+                const loginData = await loginRes.json();
+                
+                if (loginRes.ok && loginData.success) {
+                    setLoading(false);
+                    onLoginSuccess({
+                        id: loginData._id || loginData.uid,
+                        uid: loginData.uid || loginData._id,
+                        name: loginData.name || email.split('@')[0],
+                        email: loginData.email || email,
+                        role: loginData.role || 'Owner',
+                        plan: loginData.plan || 'WordPress Pro SaaS',
+                        organizationId: loginData.organization?.id,
+                        workspace: loginData.organization?.name || 'Main Workspace',
+                        token: loginData.token
+                    });
+                    return;
+                }
+
+                setLoading(false);
+                setError(baRes?.error?.message || loginData.message || 'Invalid email or password.');
             } else {
-                onLoginSuccess({
-                    name: 'Sarah Jenkins',
-                    email: 'sarah@riga.site',
-                    role: 'Editor',
-                    plan: 'Team Member'
+                // Primary: Better Auth Client Sign Up
+                const baRes = await authClient.signUp.email({
+                    email,
+                    password,
+                    name: name || email.split('@')[0],
                 });
+
+                if (baRes?.data?.user) {
+                    setLoading(false);
+                    onLoginSuccess({
+                        id: baRes.data.user.id,
+                        uid: baRes.data.user.id,
+                        name: baRes.data.user.name || name || email.split('@')[0],
+                        email: baRes.data.user.email || email,
+                        role: baRes.data.user.role || 'Owner',
+                        plan: baRes.data.user.plan || 'WordPress Pro SaaS',
+                        organizationId: baRes.data.user.organizationId,
+                        workspace: `${baRes.data.user.name || name || 'Owner'}'s Workspace`,
+                        token: baRes.data.token
+                    });
+                    return;
+                }
+
+                // Fallback direct Better Auth register endpoint
+                const regRes = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name || email.split('@')[0], email, password })
+                });
+                const regData = await regRes.json();
+
+                if (regRes.ok && regData.success) {
+                    setLoading(false);
+                    onLoginSuccess({
+                        id: regData._id || regData.uid,
+                        uid: regData.uid || regData._id,
+                        name: regData.name || name,
+                        email: regData.email || email,
+                        role: regData.role || 'Owner',
+                        plan: regData.plan || 'WordPress Pro SaaS',
+                        organizationId: regData.organizationId,
+                        workspace: regData.workspace || 'Main Workspace',
+                        token: regData.token
+                    });
+                    return;
+                }
+
+                setLoading(false);
+                setError(baRes?.error?.message || regData.message || 'Registration failed. Please try again.');
             }
-        }, 400);
+        } catch (err) {
+            setLoading(false);
+            setError(err.message || 'Authentication error. Please check your credentials.');
+        }
     };
 
     return (
@@ -73,6 +147,12 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                 <p className="mt-1 text-center text-xs text-gray-500">
                     Manage your hosted websites, custom domains, and visual builder projects.
                 </p>
+
+                {/* Better Auth & Neon Badge */}
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 py-1 px-3 rounded-full mx-auto w-fit">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Better Auth & Neon DB Active</span>
+                </div>
             </div>
 
             <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
@@ -158,48 +238,18 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 px-4 rounded-xl text-white bg-black hover:bg-neutral-800 text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2 mt-2"
+                            className="w-full py-2.5 px-4 rounded-xl text-white bg-black hover:bg-neutral-800 text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
                         >
                             {loading ? (
                                 <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
                             ) : (
                                 <>
-                                    <span>{mode === 'login' ? 'Login' : 'Register'}</span>
+                                    <span>{mode === 'login' ? 'Login with Better Auth' : 'Register with Better Auth'}</span>
                                     <ArrowRight className="w-4 h-4" />
                                 </>
                             )}
                         </button>
                     </form>
-
-                    {/* Quick Demo Logins for Fast Access */}
-                    <div className="mt-6 pt-6 border-t border-gray-100">
-                        <div className="text-center text-xs text-gray-500 mb-3 font-medium">Quick Demo:</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button
-                                type="button"
-                                onClick={() => handleQuickLogin('Owner')}
-                                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-left transition-colors"
-                            >
-                                <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                                    <ShieldCheck className="w-3.5 h-3.5 text-gray-800 flex-shrink-0" />
-                                    <span>Owner</span>
-                                </div>
-                                <div className="text-[11px] text-gray-500 truncate mt-0.5">ojiezele0@gmail.com</div>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => handleQuickLogin('Editor')}
-                                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-left transition-colors"
-                            >
-                                <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                                    <User className="w-3.5 h-3.5 text-gray-800 flex-shrink-0" />
-                                    <span>Editor</span>
-                                </div>
-                                <div className="text-[11px] text-gray-500 truncate mt-0.5">sarah@riga.site</div>
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

@@ -1,9 +1,5 @@
 {
-  "user": {
-    "email": "ojiezele0@gmail.com",
-    "name": "Ojiezele",
-    "plan": "WordPress Pro SaaS Multi-Tenant"
-  },
+  "user": null,
   "sites": [
     {
       "id": "site_1",

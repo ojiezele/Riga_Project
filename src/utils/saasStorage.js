@@ -4,12 +4,7 @@
 const SAAS_STORAGE_KEY = 'riga_saas_workspace_state_v1';
 
 export const DEFAULT_SAAS_STATE = {
-  user: {
-    email: "ojiezele0@gmail.com",
-    name: "Ojiezele",
-    role: "Owner",
-    plan: "Riga Pro SaaS"
-  },
+  user: null,
   sites: [
     {
       id: "site_1",

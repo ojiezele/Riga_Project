@@ -5,10 +5,11 @@ import Dashboard from './components/Dashboard.jsx';
 import EditorView from './components/EditorView.jsx';
 import PublishedSiteRenderer from './components/PublishedSiteRenderer.jsx';
 import { getLocalSaasState, saveLocalSaasState } from './utils/saasStorage.js';
+import { authClient } from './lib/auth-client.ts';
 
 export default function App() {
-    // Current active view: 'dashboard' is the MAIN ENTRY, 'landing', 'auth', or 'editor'
-    const [currentView, setCurrentView] = useState('dashboard');
+    // Current active view: 'landing', 'auth', 'dashboard', or 'editor'
+    const [currentView, setCurrentView] = useState('landing');
     
     // Check if visiting a published site directly via query param or route
     const [publishedSiteId, setPublishedSiteId] = useState(() => {
@@ -23,13 +24,8 @@ export default function App() {
         return null;
     });
     
-    // Authenticated User State (defaults to active workspace owner)
-    const [user, setUser] = useState({
-        name: 'Ojiezele',
-        email: 'ojiezele0@gmail.com',
-        role: 'Owner',
-        plan: 'WordPress Pro SaaS'
-    });
+    // Authenticated User State (defaults to null - secured by auth middleware / login)
+    const [user, setUser] = useState(null);
 
     // SaaS Data State with offline/local fallback initialization
     const [saasData, setSaasData] = useState(() => getLocalSaasState());
@@ -48,10 +44,13 @@ export default function App() {
         }, 3500);
     };
 
-    // Load initial SaaS database from backend with resilient offline fallback
-    const loadSaasState = async () => {
+    // Load SaaS database from backend with user isolation
+    const loadSaasState = async (forcedUserId = null) => {
         try {
-            const res = await fetch('/api/saas/state');
+            const targetId = forcedUserId !== null ? forcedUserId : (user?.id || user?.uid || '');
+            const res = await fetch(`/api/saas/state?userId=${encodeURIComponent(targetId)}`, {
+                headers: targetId ? { 'x-user-id': targetId } : {}
+            });
             if (!res.ok) {
                 throw new Error(`Server returned status ${res.status}`);
             }
@@ -60,44 +59,70 @@ export default function App() {
                 setSaasData(data);
                 saveLocalSaasState(data);
                 if (data.user && data.user.email) {
-                    setUser(prev => ({ ...prev, ...data.user }));
+                    setUser(prev => prev ? ({ ...prev, ...data.user }) : data.user);
                 }
             }
         } catch (err) {
-            // Graceful fallback to persistent local store so user never experiences "Load failed"
+            // Graceful fallback to persistent local store
             const localState = getLocalSaasState();
             if (localState && localState.sites) {
                 setSaasData(localState);
                 if (localState.user && localState.user.email) {
-                    setUser(prev => ({ ...prev, ...localState.user }));
+                    setUser(prev => prev ? ({ ...prev, ...localState.user }) : localState.user);
                 }
             }
         }
     };
 
     useEffect(() => {
-        loadSaasState();
+        const initAuth = async () => {
+            try {
+                const sessionRes = await authClient.getSession();
+                if (sessionRes?.data?.user) {
+                    const baUser = sessionRes.data.user;
+                    setUser(prev => prev ? ({ ...prev, ...baUser }) : baUser);
+                    loadSaasState(baUser.id);
+                    return;
+                }
+            } catch (e) {
+                console.warn('Better Auth session check notice:', e);
+            }
+            loadSaasState();
+        };
+        initAuth();
     }, []);
 
     // Create New Site from Dashboard
     const handleCreateNewSite = async (name, theme) => {
         try {
+            const userId = user?.id || user?.uid || 'usr_owner';
+            const organizationId = user?.organizationId || null;
             const res = await fetch('/api/saas/sites', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, theme })
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId
+                },
+                body: JSON.stringify({ 
+                    name, 
+                    theme,
+                    userId,
+                    organizationId
+                })
             });
             const data = await res.json();
             if (data.status === 'success') {
                 setSaasData(data.db);
                 saveLocalSaasState(data.db);
-                notify(`Site "${name}" created! Launching visual editor...`);
+                notify(`Site "${name}" created with enterprise JSON AST! Launching visual editor...`);
 
                 // Find created site and launch editor immediately
                 const createdSite = data.db.sites.find(s => s.name === name) || {
                     id: 'site_' + Date.now(),
                     name,
                     theme,
+                    userId,
+                    organizationId,
                     subdomain: `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.riga.site`
                 };
                 setActiveSite(createdSite);
@@ -429,17 +454,24 @@ export default function App() {
             {/* 1. PUBLIC MARKETING LANDING PAGE */}
             {currentView === 'landing' && (
                 <LandingPage 
-                    onGoToDashboard={() => setCurrentView('dashboard')}
+                    onGoToDashboard={() => {
+                        if (user) {
+                            setCurrentView('dashboard');
+                        } else {
+                            setCurrentView('auth');
+                        }
+                    }}
                     onGoToAuth={() => setCurrentView('auth')}
                 />
             )}
 
             {/* 2. AUTHENTICATION PAGES (LOGIN / SIGNUP) */}
-            {currentView === 'auth' && (
+            {(currentView === 'auth' || ((currentView === 'dashboard' || currentView === 'editor') && !user)) && (
                 <AuthPage 
                     onLoginSuccess={(authedUser) => {
                         setUser(authedUser);
                         setCurrentView('dashboard');
+                        loadSaasState(authedUser.id || authedUser.uid);
                         notify(`Welcome back, ${authedUser.name}!`);
                     }}
                     onBackToLanding={() => setCurrentView('landing')}
@@ -462,7 +494,10 @@ export default function App() {
                     onUploadMedia={handleUploadMedia}
                     onDeleteMedia={handleDeleteMedia}
                     onUpdateLeadStatus={handleUpdateLeadStatus}
-                    onLogout={() => {
+                    onLogout={async () => {
+                        try {
+                            await authClient.signOut();
+                        } catch (e) {}
                         setUser(null);
                         setCurrentView('landing');
                         notify('Signed out successfully');
