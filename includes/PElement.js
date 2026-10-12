@@ -1,15 +1,10 @@
-import BackgrundControl from './BackgroundControl.js';
 import BaseElement from './BaseElement.js';
-import RadiosControl from './RadiosControl.js';
-import TextControl from './TextControl.js';
-import AlignControl from './AlignControl.js'
-import ParagraphWidget from './ParagraphWidget.js';
 
 class PElement extends BaseElement {
     constructor(template, text) {
-        super(); // Call the parent class constructor
-        this.template = template;
-        this.text = text;
+        super();
+        this.template = template || 'P';
+        this.text = text || 'Paragraph text content.';
         this.domNode = null;
 
         // Inline edit
@@ -34,13 +29,12 @@ class PElement extends BaseElement {
             padding_right: 0,
             padding_bottom: 0,
             padding_left: 0,
-            text_align: 'center', // left, center, right
-        }
+            text_align: 'left',
+        };
     }
 
     render() {
         if (!this.domNode) {
-            // New native DOM Node
             this.domNode = document.createElement('div');
             this.domNode.setAttribute('builder-element', this.getClassName());
         }
@@ -54,321 +48,82 @@ class PElement extends BaseElement {
 
         // Inline edit: events
         this.inlineEditParams.forEach((param) => {
-            if (!this.domNode.querySelector('[inline-edit="'+param+'"]')) {
-                return;
-            }
+            const target = this.domNode.querySelector('[inline-edit="'+param+'"]');
+            if (!target) return;
 
-            // add inline edit attribute
-            this.domNode.querySelector('[inline-edit="'+param+'"]').setAttribute('contenteditable', 'true');
-
-            this.domNode.querySelector('[inline-edit="'+param+'"]').addEventListener('input', (e) => {
-                var content = this.domNode.querySelector('[inline-edit="'+param+'"]').innerHTML;
-
-                this.text = content;
-
-                //
-                builder.renderElementControls(this);
+            target.setAttribute('contenteditable', 'true');
+            target.addEventListener('input', () => {
+                this.text = target.innerHTML;
+                const b = this.getBuilder();
+                if (b && typeof b.renderElementControls === 'function') {
+                    b.renderElementControls(this);
+                }
             });
         });
 
-        
-
-        //
         return this.domNode;
     }
 
     getData() {
         return {
-            name: this.getClassName(),
+            name: 'PElement',
             template: this.template,
             text: this.text,
-
-            // formats
             formats: this.formats,
         };
     }
 
     static parse(data) {
-        var e = new this(data.template, data.text);
+        var e = new PElement(data.template, data.text);
 
-        // formats
         if (data.formats) {
-            e.setFormat('font_size', data.formats.font_size);
-            e.setFormat('font_family', data.formats.font_family);
-            e.setFormat('link_color', data.formats.link_color);
-            e.setFormat('paragraph_spacing', data.formats.paragraph_spacing);
-            e.setFormat('line_height', data.formats.line_height);
-            e.setFormat('letter_spacing', data.formats.letter_spacing);
-            e.setFormat('text_direction', data.formats.text_direction);
-            e.setFormat('background_color', data.formats.background_color);
-            e.setFormat('padding_top', data.formats.padding_top);
-            e.setFormat('padding_right', data.formats.padding_right);
-            e.setFormat('padding_bottom', data.formats.padding_bottom);
-            e.setFormat('padding_left', data.formats.padding_left);
-            e.setFormat('text_align', data.formats.text_align);
-
-            if (data.formats.background_image) {
-                e.setFormat('background_image', data.formats.background_image);
-            }
-            if (data.formats.background_position) {
-                e.setFormat('background_position', data.formats.background_position);
-            }
-            if (data.formats.background_repeat) {
-                e.setFormat('background_repeat', data.formats.background_repeat);
-            }
+            Object.assign(e.formats, data.formats);
         }
 
         return e;
     }
 
+    setFormat(key, value) {
+        this.formats[key] = value;
+    }
+
+    getFormat(key, defaultValue = null) {
+        return this.formats[key] !== undefined && this.formats[key] !== null ? this.formats[key] : defaultValue;
+    }
+
+    getContentControls() {
+        const TextareaCtrl = window.TextareaControl;
+        const ButtonGroupCtrl = window.ButtonGroupControl;
+        const HeaderCtrl = window.SectionHeaderControl;
+        const controls = [];
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Paragraph Text'));
+        if (TextareaCtrl) {
+            controls.push(new TextareaCtrl('text', 'Content Text', this.text, (val) => {
+                this.text = val;
+                this.render();
+            }));
+        }
+        if (ButtonGroupCtrl) {
+            controls.push(new ButtonGroupCtrl('text_align', 'Alignment', this.getFormat('text_align', 'left'), (val) => {
+                this.setFormat('text_align', val);
+                this.render();
+            }, {
+                options: [
+                    { value: 'left', label: 'Left' },
+                    { value: 'center', label: 'Center' },
+                    { value: 'right', label: 'Right' },
+                    { value: 'justify', label: 'Justify' }
+                ]
+            }));
+        }
+        return controls;
+    }
+
     getControls() {
-        return [
-            // RichTextControl
-            new RichTextControl(
-                // label
-                'Text',
-                // value
-                this.text,
-                // callback
-                {
-                    // set text
-                    setText: (text) => {
-                        this.text = text;
-                        this.render();
-                    }
-                }
-            ),
-            new RadiosControl(
-                // label
-                'Brand Type',
-                // value
-                'personal_brand',
-                // options
-                [
-                    { label: 'Personal Brand', value: 'personal_brand' },
-                    { label: 'Business Brand', value: 'business_brand' }
-                ],
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
-            new DropdownControl(
-                // label
-                'Brand Type',
-                // value
-                'personal_brand',
-                // options
-                [
-                    { label: 'Personal Brand', value: 'personal_brand' },
-                    { label: 'Business Brand', value: 'business_brand' }
-                ],
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
-
-            new FontFamilyControl(
-                'Font Family',
-                this.getFormat('font_family', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('font_family', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new FontWeightControl(
-                'Font Weight',
-                this.getFormat('font_weight', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('font_weight', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new FontSizeControl(
-                'Font Size',
-                this.getFormat('font_size', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('font_size', value);
-                        this.render();
-                    }
-                }
-            ),
-            
-            new TextColorControl(
-                'Text Color',
-                this.getFormat('text_color', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('text_color', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new LinkColorControl(
-                'Link Color',
-                this.getFormat('link_color', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('link_color', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new AlignControl(
-                'Text alignment',
-                this.getFormat('text_align', 'left'),
-                {
-                    setValue: (value) => {
-                        this.setFormat('text_align', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new ParagraphSpacingControl(
-                'Paragraph Spacing',
-                this.getFormat('paragraph_spacing', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('paragraph_spacing', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new LineHeightControl(
-                'Line Height',
-                this.getFormat('line_height', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('line_height', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new LetterSpacingControl(
-                'Letter Spacing',
-                this.getFormat('letter_spacing', null),
-                {
-                    setValue: (value) => {
-                        this.setFormat('letter_spacing', value);
-                        this.render();
-                    }
-                }
-            ),
-            new TextDirectionControl(
-                'Text Direction',
-                this.getFormat('text_direction', 'left_to_right'),
-                {
-                    setValue: (value) => {
-                        this.setFormat('text_direction', value);
-                        this.render();
-                    }
-                }
-            ),
-
-            new BackgroundControl(
-                // label
-                'Background Settings',
-                // values
-                {
-                    color: this.getFormat('background_color', ''),
-                    image: this.getFormat('background_image', ''),
-                    position: this.getFormat('background_position', 'center'),
-                    size: this.getFormat('background_size', '100').toString().replace('%', ''),
-                    toRepeat: this.getFormat('background_repeat', 'no-repeat') === 'repeat'
-                },
-                // callback
-                {
-                    setBackground: (values) => {
-                        this.setFormat('background_color', values.color);
-                        this.setFormat('background_image', values.image);
-                        this.setFormat('background_position', values.position);
-                        this.setFormat('background_size', parseInt(values.size, 10) || 100);
-                        this.setFormat('background_repeat', values.toRepeat ? 'repeat' : 'no-repeat');
-                        this.render();
-                    }
-                }
-            ),
-            
-            // CheckboxControl
-            new CheckboxControl(
-                // label
-                'Optimized for mobile',
-                // descriptoin,
-                'Allow the element to display correctly on mobile devices',
-                // value
-                true,
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
-
-            // CheckboxControl
-            new CheckboxControl(
-                // label
-                'Compatibility mode for legacy browser',
-                // descriptoin,
-                'Render compatible HTML for older browser like IE, Opera notice that in certain cases, it might generate JS and make sure your browser supports JS',
-                // value
-                true,
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
-
-            new PaddingMarginControl(
-                // label
-                'Padding',
-                // value
-                {
-                    top: this.getFormat('padding_top', 0),
-                    right: this.getFormat('padding_right', 0),
-                    bottom: this.getFormat('padding_bottom', 0),
-                    left: this.getFormat('padding_left', 0),
-                },
-                // callback
-                {
-                    setValues: (values) => {
-                        this.setFormat('padding_top', values.top);
-                        this.setFormat('padding_right', values.right);
-                        this.setFormat('padding_bottom', values.bottom);
-                        this.setFormat('padding_left', values.left);
-
-                        this.render();
-                    }
-                }
-            ),
-        ];
+        return this.getContentControls();
     }
 
     getStyleString(formats) {
-
         const styleMap = {
             font_size: v => v ? `font-size: ${v}px;` : '',
             font_family: v => {
@@ -381,10 +136,9 @@ class PElement extends BaseElement {
             paragraph_spacing: v => v ? `margin-bottom: ${v}px !important;` : '',
             line_height: v => v ? `line-height: ${v} !important;` : '',
             text_direction: v => v === 'right_to_left' ? `direction: rtl !important;` : v === 'left_to_right' ? `direction: ltr !important;` : '',
-
             font_style: v => v ? `font-style: ${v} !important;` : '',
             font_weight: v => v ? `font-weight: ${v} !important;` : '',
-            // text_color: v => v ? `color: ${v} !important;` : '',
+            text_color: v => v ? `color: ${v} !important;` : '',
             background_color: v => v ? `background-color: ${v} !important;` : '',
             background_image: v => v ? `background-image: url('${v}') !important;` : '',
             background_position: v => v ? `background-position: ${v} !important;` : '',
@@ -400,16 +154,14 @@ class PElement extends BaseElement {
             margin_left: v => v ? `margin-left: ${v}px !important;` : '',
             border_radius: v => v ? `border-radius: ${v}px !important;` : '',
             border_color: v => v ? `border-color: ${v} !important;` : '',
-            border_size: (v, formats) => {
-                if (v && formats.border_color) {
-                    return `border: ${v}px solid ${formats.border_color} !important;`;
+            border_size: (v, f) => {
+                if (v && f.border_color) {
+                    return `border: ${v}px solid ${f.border_color} !important;`;
                 } else if (v) {
                     return `border: ${v}px solid !important;`;
-                } else {
-                    return '';
                 }
+                return '';
             },
-            // left -> start, center -> center, right -> end
             text_align: v => v ? `text-align: ${v} !important;` : '',
         };
         return Object.entries(styleMap)

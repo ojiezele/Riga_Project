@@ -23,6 +23,11 @@ class WidgetsBox {
     }
 
     render() {
+        if (!this.container) {
+            console.warn('WidgetsBox: container is null or undefined');
+            return;
+        }
+
         if (!this.widgetItemsContainer) {
             const wrapper = document.createElement('div');
             wrapper.innerHTML = `
@@ -165,9 +170,14 @@ class WidgetsBox {
                 }
             });
 
+            const currentBuilder = (typeof window !== 'undefined' && window.builder) ? window.builder : (typeof builder !== 'undefined' ? builder : null);
             widgets.forEach((widget) => {
-                groupContent.appendChild(widget.domNode);
-                builder.uiManager.addDraggableItem(widget);
+                if (widget && widget.domNode) {
+                    groupContent.appendChild(widget.domNode);
+                    if (currentBuilder && currentBuilder.uiManager) {
+                        currentBuilder.uiManager.addDraggableItem(widget);
+                    }
+                }
             });
 
             this.widgetItemsContainer.appendChild(groupDom);

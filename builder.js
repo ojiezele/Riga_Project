@@ -81,11 +81,44 @@ import CarouselSettingsControl from './includes/CarouselSettingsControl.js'; // 
 import CarouselSlideElement from './includes/CarouselSlideElement.js'; // Importing CarouselSlideCellElement
 import CarouselSlideControl from './includes/CarouselSlideControl.js'; // Importing CarouselSlideControl
 
-// temporal elements*
-
 import CustomRangeControl from './includes/CustomRangeControl.js';
+import UniversalWidgetElement from './includes/UniversalWidgetElement.js';
+import { CatalogWidget, MASTER_CATEGORIES } from './includes/WidgetCatalog.js';
+import GlobalSettingsManager from './includes/GlobalSettingsManager.js';
+
+import {
+    ControlBase,
+    TextControl as ModernTextControl,
+    TextareaControl,
+    SelectControl as ModernSelectControl,
+    SliderControl,
+    ColorControl,
+    ButtonGroupControl,
+    FourSideControl,
+    ToggleControl,
+    MediaPickerControl,
+    IconPickerControl,
+    SectionHeaderControl
+} from './includes/ElementorControls.js';
 
 // Attach all classes to the global `window` object
+window.ControlBase = ControlBase;
+window.ModernTextControl = ModernTextControl;
+window.TextareaControl = TextareaControl;
+window.ModernSelectControl = ModernSelectControl;
+window.SliderControl = SliderControl;
+window.ColorControl = ColorControl;
+window.ButtonGroupControl = ButtonGroupControl;
+window.FourSideControl = FourSideControl;
+window.ToggleControl = ToggleControl;
+window.MediaPickerControl = MediaPickerControl;
+window.IconPickerControl = IconPickerControl;
+window.SectionHeaderControl = SectionHeaderControl;
+
+window.UniversalWidgetElement = UniversalWidgetElement;
+window.CatalogWidget = CatalogWidget;
+window.MASTER_CATEGORIES = MASTER_CATEGORIES;
+window.GlobalSettingsManager = GlobalSettingsManager;
 window.Builder = Builder;
 window.WidgetsBox = WidgetsBox;
 window.HeadingWidget = HeadingWidget;

@@ -1,5 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 dotenv.config();
 
 // Initialize S3-compatible client for Cloudflare R2
@@ -33,12 +35,11 @@ if (r2AccountId && r2AccessKeyId && r2SecretAccessKey) {
  */
 export async function uploadToR2(key, body, contentType = 'text/html') {
     if (!s3Client) {
-        // Fallback simulation when R2 credentials are not configured yet
         return {
             success: true,
             storage: 'local_fallback',
             key,
-            url: `/cdn/storage/${key}`,
+            url: `/api/media/proxy?key=${encodeURIComponent(key)}`,
             timestamp: new Date().toISOString()
         };
     }
@@ -53,19 +54,34 @@ export async function uploadToR2(key, body, contentType = 'text/html') {
         });
 
         await s3Client.send(command);
-        const publicDomain = process.env.R2_PUBLIC_DOMAIN || `${r2BucketName}.riga.site`;
         
+        const publicDomain = process.env.R2_PUBLIC_DOMAIN;
+        const fileUrl = publicDomain 
+            ? `https://${publicDomain}/${key}`
+            : `/api/media/proxy?key=${encodeURIComponent(key)}`;
+
         return {
             success: true,
             storage: 'cloudflare_r2_live',
             key,
-            url: `https://${publicDomain}/${key}`,
+            url: fileUrl,
             timestamp: new Date().toISOString()
         };
     } catch (error) {
         console.error('R2 Upload Error:', error);
         throw new Error(`Failed to upload to Cloudflare R2: ${error.message}`);
     }
+}
+
+export async function getObjectFromR2(key) {
+    if (!s3Client) {
+        throw new Error('R2 client not initialized');
+    }
+    const command = new GetObjectCommand({
+        Bucket: r2BucketName,
+        Key: key
+    });
+    return await s3Client.send(command);
 }
 
 /**

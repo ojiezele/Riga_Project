@@ -38,41 +38,21 @@ class BaseElement {
     }
 
     getControls() {
-        return [
-            // CheckboxControl
-            new CheckboxControl(
-                // label
-                'Optimized for mobile',
-                // descriptoin,
-                'Allow the element to display correctly on mobile devices',
-                // value
-                true,
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
+        return [];
+    }
 
-            // CheckboxControl
-            new CheckboxControl(
-                // label
-                'Compatibility mode for legacy browser',
-                // descriptoin,
-                'Render compatible HTML for older browser like IE, Opera notice that in certain cases, it might generate JS and make sure your browser supports JS',
-                // value
-                true,
-                // callback
-                {
-                    // set text
-                    setValue: (value) => {
-                        alert(value);
-                    }
-                }
-            ),
-        ];
+    getStyleControls() {
+        if (typeof this.styles === 'undefined') {
+            this.styles = {};
+        }
+        return [];
+    }
+
+    getAdvancedControls() {
+        if (typeof this.advanced === 'undefined') {
+            this.advanced = {};
+        }
+        return [];
     }
 
     getBuilder() {

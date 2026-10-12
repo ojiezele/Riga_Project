@@ -12,62 +12,56 @@ import TitleWidget from './TitleWidget.js';
 import DescImageWidget from './DescImageWidget.js';
 import CopyrightWidget from './CopyrightWidget.js';
 
+const currentBuilder = (typeof window !== 'undefined' && window.builder) ? window.builder : (typeof builder !== 'undefined' ? builder : null);
 
+if (currentBuilder && currentBuilder.widgetsBox) {
+    currentBuilder.widgetsBox.addWidget(new HeaderWidget(), {
+        group: 'Theme Components',
+    });
+    currentBuilder.widgetsBox.addWidget(new TitleWidget(), {
+        group: 'Theme Components',
+    });
+    currentBuilder.widgetsBox.addWidget(new TextWidget(), {
+        group: 'Theme Components',
+    });
+    currentBuilder.widgetsBox.addWidget(new DescImageWidget(), {
+        group: 'Theme Components',
+    });
+    currentBuilder.widgetsBox.addWidget(new SocialIconsWidget(), {
+        group: 'Theme Components',
+    });
+    currentBuilder.widgetsBox.addWidget(new CopyrightWidget(), {
+        group: 'Theme Components',
+    });
 
-builder.widgetsBox.addWidget(new HeaderWidget(), {
-    group: 'Theme Components',
-});
-builder.widgetsBox.addWidget(new TitleWidget(), {
-    group: 'Theme Components',
-});
-builder.widgetsBox.addWidget(new TextWidget(), {
-    group: 'Theme Components',
-});
-builder.widgetsBox.addWidget(new DescImageWidget(), {
-    group: 'Theme Components',
-});
-builder.widgetsBox.addWidget(new SocialIconsWidget(), {
-    group: 'Theme Components',
-});
-builder.widgetsBox.addWidget(new CopyrightWidget(), {
-    group: 'Theme Components',
-});
+    // Register Comprehensive Master Categories
+    const categoryLabels = {
+        layout: 'Layout & Sections',
+        typography: 'Typography',
+        media: 'Media & Visuals',
+        basic: 'Basic Elements',
+        interactive: 'Interactive',
+        navigation: 'Navigation',
+        forms: 'Forms & Leads',
+        marketing: 'Marketing & CTA',
+        content: 'Content & Grids',
+        ecommerce: 'E-Commerce',
+        advanced: 'Advanced'
+    };
 
-builder.widgetsBox.addWidget(new HeadingWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new ParagraphWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new WelcomeWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new MenuWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new ListWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new ImageWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new GridWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new ButtonWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new VideoWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new AlertWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new RSSWidget(), {
-    group: 'Basic',
-});
-builder.widgetsBox.addWidget(new YoutubeWidget(), {
-    group: 'Basic',
-});
+    const categories = window.MASTER_CATEGORIES || {};
+    const CatalogWidgetClass = window.CatalogWidget;
 
-builder.widgetsBox.render();
+    if (CatalogWidgetClass && Object.keys(categories).length > 0) {
+        Object.entries(categories).forEach(([catKey, widgets]) => {
+            const groupTitle = categoryLabels[catKey] || (catKey.charAt(0).toUpperCase() + catKey.slice(1));
+            widgets.forEach(def => {
+                currentBuilder.widgetsBox.addWidget(new CatalogWidgetClass(def, groupTitle), {
+                    group: groupTitle
+                });
+            });
+        });
+    }
+
+    currentBuilder.widgetsBox.render();
+}

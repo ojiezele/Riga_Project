@@ -18,7 +18,7 @@ import {
     insertLead,
     updateLeadStatus
 } from '../src/db/queries.ts';
-import { uploadToR2, deleteFromR2, isR2Live } from './services/r2Storage.js';
+import { uploadToR2, deleteFromR2, isR2Live, getObjectFromR2 } from './services/r2Storage.js';
 
 dotenv.config();
 
@@ -373,6 +373,26 @@ app.post('/api/saas/billing/upgrade', async (req, res) => {
 // -------------------------------------------------------------
 // MEDIA UPLOAD TO CLOUDFLARE R2 & NEON DB
 // -------------------------------------------------------------
+app.get('/api/media/proxy', async (req, res) => {
+    try {
+        const key = req.query.key;
+        if (!key) return res.status(400).json({ message: 'Media key is required' });
+        
+        const obj = await getObjectFromR2(String(key));
+        if (obj.ContentType) {
+            res.setHeader('Content-Type', obj.ContentType);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        if (obj.Body) {
+            obj.Body.pipe(res);
+        } else {
+            res.status(404).json({ message: 'Media object not found in R2' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 app.post('/api/media/upload', async (req, res) => {
     try {
         const { filename, fileData, contentType, category, userId } = req.body;

@@ -61,6 +61,34 @@ class Builder {
         // load widgets js code
         await this.loadWidgetsJs(themeUrl);
 
+        // Ensure Master Catalog widgets are always present and widgetsBox is rendered
+        if (this.widgetsBox) {
+            if (Object.keys(this.widgetsBox.widgetGroups).length === 0 && window.MASTER_CATEGORIES && window.CatalogWidget) {
+                const categoryLabels = {
+                    layout: 'Layout & Sections',
+                    typography: 'Typography',
+                    media: 'Media & Visuals',
+                    basic: 'Basic Elements',
+                    interactive: 'Interactive',
+                    navigation: 'Navigation',
+                    forms: 'Forms & Leads',
+                    marketing: 'Marketing & CTA',
+                    content: 'Content & Grids',
+                    ecommerce: 'E-Commerce',
+                    advanced: 'Advanced'
+                };
+                Object.entries(window.MASTER_CATEGORIES).forEach(([catKey, widgets]) => {
+                    const groupTitle = categoryLabels[catKey] || (catKey.charAt(0).toUpperCase() + catKey.slice(1));
+                    widgets.forEach(def => {
+                        this.widgetsBox.addWidget(new window.CatalogWidget(def, groupTitle), {
+                            group: groupTitle
+                        });
+                    });
+                });
+            }
+            this.widgetsBox.render();
+        }
+
         // init iframe
         await this.initIframe();
 
@@ -387,62 +415,306 @@ class Builder {
     
     renderElementControls(element) {
         const container = this.settingsContainer;
+        if (!container || !element) return;
+
+        const elementName = element.widgetId || element.getClassName().replace('Element', '');
 
         container.innerHTML = `
-            <div class="settings-container bg-white p-4 space-y-4">
-                <div class="flex items-center justify-between pb-3 border-b border-gray-200">
-                    <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Selected Element</span>
-                        <h6 class="font-extrabold text-sm text-gray-900 mt-0.5">${element.getClassName()}</h6>
+            <div class="elementor-inspector bg-white flex flex-col h-full select-none">
+                <!-- Inspector Header -->
+                <div class="p-3 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
+                            <span class="text-xs font-bold">${elementName.substring(0, 2).toUpperCase()}</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Selected Component</div>
+                            <h4 class="text-xs font-extrabold text-gray-900 truncate">${elementName}</h4>
+                        </div>
                     </div>
-                    <div data-control="actions" class="flex items-center gap-1.5">
+                    <div data-control="actions" class="flex items-center gap-1 shrink-0"></div>
+                </div>
+
+                <!-- Elementor 3-Tab Navigation: Content | Style | Advanced -->
+                <div class="px-3 pt-2 pb-1 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                    <div class="flex items-center bg-gray-200/80 p-0.5 rounded-lg text-xs font-semibold">
+                        <button type="button" data-inspector-tab="content" class="inspector-tab-btn flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 bg-black text-white shadow-2xs font-bold cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <span>Content</span>
+                        </button>
+                        <button type="button" data-inspector-tab="style" class="inspector-tab-btn flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 text-gray-600 hover:text-black cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                            <span>Style</span>
+                        </button>
+                        <button type="button" data-inspector-tab="advanced" class="inspector-tab-btn flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 text-gray-600 hover:text-black cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                            <span>Advanced</span>
+                        </button>
                     </div>
                 </div>
-                    
-                <div data-control="settings-controls-container" class="space-y-3">
+
+                <!-- Tab Panes -->
+                <div class="flex-1 overflow-y-auto p-3 space-y-3">
+                    <div id="InspectorPaneContent" class="space-y-3 block"></div>
+                    <div id="InspectorPaneStyle" class="space-y-3 hidden"></div>
+                    <div id="InspectorPaneAdvanced" class="space-y-3 hidden"></div>
                 </div>
             </div>
         `;
 
-        const controls = element.getControls();
+        // Wire Header Actions (Delete, Duplicate, Select Parent, Deselect)
+        const actionsContainer = container.querySelector('[data-control="actions"]');
+        element.getActions().forEach(action => {
+            const btn = document.createElement('button');
+            btn.className = 'p-1.5 rounded-lg bg-gray-100 hover:bg-black hover:text-white text-gray-700 transition-all flex items-center justify-center cursor-pointer';
+            btn.title = action.label;
 
-        const head = document.createElement('div');
-        head.className = 'flex items-center gap-2 pt-2';
-        head.innerHTML = `
-            <span class="text-xs font-bold uppercase tracking-wider text-gray-900">Configurations</span>
-            <div class="flex-1 h-px bg-gray-200"></div>
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        `;
-        container.querySelector('[data-control="settings-controls-container"]').appendChild(head);
-
-        controls.forEach((control) => {
-            const controlObj = control.domNode;
-            container.querySelector('[data-control="settings-controls-container"]').appendChild(controlObj);
-
-            if (control.afterRender) {
-                control.afterRender();
+            let actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5"/></svg>`;
+            if (action.icon === 'delete' || action.label?.toLowerCase().includes('delete')) {
+                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
+            } else if (action.icon === 'content_copy' || action.label?.toLowerCase().includes('duplicate')) {
+                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+            } else if (action.icon === 'remove_selection' || action.label?.toLowerCase().includes('unselect')) {
+                actionSvg = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
             }
+            btn.innerHTML = actionSvg;
+            btn.addEventListener('click', () => action.run());
+            actionsContainer.appendChild(btn);
         });
 
-        element.getActions().forEach(action => {
-            var actionButton = document.createElement('button');
-            actionButton.setAttribute('class', 'p-1.5 rounded-md bg-gray-100 hover:bg-black hover:text-white text-gray-700 transition-all flex items-center justify-center');
-            actionButton.setAttribute('title', action.label);
-            
-            let actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5"/></svg>`;
-            if (action.icon === 'delete' || action.label?.toLowerCase().includes('delete')) {
-                actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
-            } else if (action.icon === 'content_copy' || action.label?.toLowerCase().includes('duplicate')) {
-                actionSvg = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
-            }
-            actionButton.innerHTML = actionSvg;
+        // Tab Switching Logic
+        const tabBtns = container.querySelectorAll('.inspector-tab-btn');
+        const paneContent = container.querySelector('#InspectorPaneContent');
+        const paneStyle = container.querySelector('#InspectorPaneStyle');
+        const paneAdvanced = container.querySelector('#InspectorPaneAdvanced');
 
-            container.querySelector('[data-control="actions"]').appendChild(actionButton);
+        const switchTab = (targetTab) => {
+            tabBtns.forEach(btn => {
+                const isTarget = btn.getAttribute('data-inspector-tab') === targetTab;
+                btn.className = `inspector-tab-btn flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    isTarget ? 'bg-black text-white shadow-2xs font-bold' : 'text-gray-600 hover:text-black'
+                }`;
+            });
 
-            actionButton.addEventListener('click', () => {
-                action.run();
+            paneContent.style.display = targetTab === 'content' ? 'block' : 'none';
+            paneStyle.style.display = targetTab === 'style' ? 'block' : 'none';
+            paneAdvanced.style.display = targetTab === 'advanced' ? 'block' : 'none';
+        };
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchTab(btn.getAttribute('data-inspector-tab'));
             });
         });
+
+        // 1. POPULATE CONTENT PANE
+        const contentControls = typeof element.getContentControls === 'function' 
+            ? element.getContentControls() 
+            : element.getControls();
+
+        if (contentControls && contentControls.length > 0) {
+            contentControls.forEach(ctrl => {
+                const node = ctrl.domNode || ctrl;
+                if (node instanceof HTMLElement) {
+                    paneContent.appendChild(node);
+                    if (ctrl.afterRender) ctrl.afterRender();
+                }
+            });
+        } else {
+            paneContent.innerHTML = `
+                <div class="text-center py-6 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                    <p class="text-xs font-semibold text-gray-600">No content parameters</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Use the Style and Advanced tabs to customize appearance.</p>
+                </div>
+            `;
+        }
+
+        // 2. POPULATE STYLE PANE
+        const styleControls = typeof element.getStyleControls === 'function' && element.getStyleControls().length > 0
+            ? element.getStyleControls()
+            : this.generateDefaultStyleControls(element);
+
+        styleControls.forEach(ctrl => {
+            const node = ctrl.domNode || ctrl;
+            if (node instanceof HTMLElement) {
+                paneStyle.appendChild(node);
+                if (ctrl.afterRender) ctrl.afterRender();
+            }
+        });
+
+        // 3. POPULATE ADVANCED PANE
+        const advancedControls = typeof element.getAdvancedControls === 'function' && element.getAdvancedControls().length > 0
+            ? element.getAdvancedControls()
+            : this.generateDefaultAdvancedControls(element);
+
+        advancedControls.forEach(ctrl => {
+            const node = ctrl.domNode || ctrl;
+            if (node instanceof HTMLElement) {
+                paneAdvanced.appendChild(node);
+                if (ctrl.afterRender) ctrl.afterRender();
+            }
+        });
+    }
+
+    // Generate full Elementor Style controls for any element
+    generateDefaultStyleControls(element) {
+        const controls = [];
+        const formats = element.formats || {};
+
+        const updateStyle = (key, val, cssProp) => {
+            if (typeof element.setFormat === 'function') {
+                element.setFormat(key, val);
+            } else if (element.formats) {
+                element.formats[key] = val;
+            }
+            if (element.domNode && cssProp) {
+                const target = element.domNode.firstElementChild || element.domNode;
+                target.style[cssProp] = val;
+            }
+            if (typeof element.render === 'function') element.render();
+        };
+
+        const SliderCtrl = window.SliderControl;
+        const ColorCtrl = window.ColorControl;
+        const FourSideCtrl = window.FourSideControl;
+        const TextCtrl = window.ModernTextControl || window.TextControl;
+        const SelectCtrl = window.ModernSelectControl || window.SelectControl;
+        const ButtonGroupCtrl = window.ButtonGroupControl;
+        const HeaderCtrl = window.SectionHeaderControl;
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Typography'));
+        if (SelectCtrl) {
+            controls.push(new SelectCtrl('font_family', 'Font Family', formats.font_family || 'inherit', (v) => updateStyle('font_family', v, 'fontFamily'), {
+                options: ['inherit', 'Inter, sans-serif', 'Plus Jakarta Sans, sans-serif', 'Outfit, sans-serif', 'Syne, sans-serif', 'Roboto, sans-serif', 'Playfair Display, serif']
+            }));
+        }
+        if (SliderCtrl) {
+            controls.push(new SliderCtrl('font_size', 'Font Size', parseFloat(formats.font_size) || 16, (v, num) => updateStyle('font_size', num, 'fontSize'), { min: 8, max: 96, unit: 'px' }));
+        }
+        if (ButtonGroupCtrl) {
+            controls.push(new ButtonGroupCtrl('text_align', 'Alignment', formats.text_align || 'left', (v) => updateStyle('text_align', v, 'textAlign'), {
+                options: [
+                    { value: 'left', label: 'Left' },
+                    { value: 'center', label: 'Center' },
+                    { value: 'right', label: 'Right' },
+                    { value: 'justify', label: 'Justify' }
+                ]
+            }));
+        }
+        if (ColorCtrl) {
+            controls.push(new ColorCtrl('text_color', 'Text Color', formats.text_color || '', (v) => updateStyle('text_color', v, 'color')));
+        }
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Background'));
+        if (ColorCtrl) {
+            controls.push(new ColorCtrl('background_color', 'Background Color', formats.background_color || '', (v) => updateStyle('background_color', v, 'backgroundColor')));
+        }
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Spacing & Dimensions'));
+        if (FourSideCtrl) {
+            controls.push(new FourSideCtrl('padding', 'Padding', {
+                top: formats.padding_top || '0px',
+                right: formats.padding_right || '0px',
+                bottom: formats.padding_bottom || '0px',
+                left: formats.padding_left || '0px'
+            }, (values) => {
+                updateStyle('padding_top', values.top);
+                updateStyle('padding_right', values.right);
+                updateStyle('padding_bottom', values.bottom);
+                updateStyle('padding_left', values.left);
+            }));
+            controls.push(new FourSideCtrl('margin', 'Margin', {
+                top: formats.margin_top || '0px',
+                right: formats.margin_right || '0px',
+                bottom: formats.margin_bottom || '0px',
+                left: formats.margin_left || '0px'
+            }, (values) => {
+                updateStyle('margin_top', values.top);
+                updateStyle('margin_right', values.right);
+                updateStyle('margin_bottom', values.bottom);
+                updateStyle('margin_left', values.left);
+            }));
+        }
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Borders & Corners'));
+        if (SelectCtrl) {
+            controls.push(new SelectCtrl('border_style', 'Border Style', formats.border_style || 'none', (v) => updateStyle('border_style', v, 'borderStyle'), {
+                options: ['none', 'solid', 'dashed', 'dotted', 'double']
+            }));
+        }
+        if (SliderCtrl) {
+            controls.push(new SliderCtrl('border_radius', 'Border Radius', parseFloat(formats.border_radius) || 0, (v, num) => updateStyle('border_radius', num, 'borderRadius'), { min: 0, max: 64, unit: 'px' }));
+        }
+        if (ColorCtrl) {
+            controls.push(new ColorCtrl('border_color', 'Border Color', formats.border_color || '', (v) => updateStyle('border_color', v, 'borderColor')));
+        }
+
+        return controls;
+    }
+
+    // Generate full Elementor Advanced controls for any element
+    generateDefaultAdvancedControls(element) {
+        const controls = [];
+        const formats = element.formats || {};
+
+        const updateAdvanced = (prop, val) => {
+            if (element.domNode) {
+                const target = element.domNode.firstElementChild || element.domNode;
+                target.style[prop] = val;
+            }
+            if (element.formats) element.formats[prop] = val;
+        };
+
+        const TextCtrl = window.ModernTextControl || window.TextControl;
+        const SelectCtrl = window.ModernSelectControl || window.SelectControl;
+        const TextareaCtrl = window.TextareaControl;
+        const SliderCtrl = window.SliderControl;
+        const HeaderCtrl = window.SectionHeaderControl;
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Layout & Flexbox'));
+        if (SelectCtrl) {
+            controls.push(new SelectCtrl('display', 'Display Mode', formats.display || 'block', (v) => updateAdvanced('display', v), {
+                options: ['block', 'flex', 'grid', 'inline-block', 'none']
+            }));
+            controls.push(new SelectCtrl('flex_direction', 'Flex Direction', formats.flex_direction || 'row', (v) => updateAdvanced('flexDirection', v), {
+                options: ['row', 'column', 'row-reverse', 'column-reverse']
+            }));
+            controls.push(new SelectCtrl('justify_content', 'Justify Content', formats.justify_content || 'flex-start', (v) => updateAdvanced('justifyContent', v), {
+                options: ['flex-start', 'center', 'flex-end', 'space-between', 'space-around']
+            }));
+        }
+        if (SliderCtrl) {
+            controls.push(new SliderCtrl('gap', 'Gap Spacing', parseFloat(formats.gap) || 0, (v, num) => updateAdvanced('gap', `${num}px`), { min: 0, max: 64, unit: 'px' }));
+        }
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Positioning'));
+        if (SelectCtrl) {
+            controls.push(new SelectCtrl('position', 'Position', formats.position || 'static', (v) => updateAdvanced('position', v), {
+                options: ['static', 'relative', 'absolute', 'fixed', 'sticky']
+            }));
+        }
+        if (TextCtrl) {
+            controls.push(new TextCtrl('zIndex', 'Z-Index Layer', formats.zIndex || '', (v) => updateAdvanced('zIndex', v), { placeholder: '10' }));
+        }
+
+        if (HeaderCtrl) controls.push(new HeaderCtrl('Attributes & Custom Code'));
+        if (TextCtrl) {
+            controls.push(new TextCtrl('htmlId', 'CSS ID (#)', formats.htmlId || '', (v) => {
+                if (element.domNode) element.domNode.id = v;
+                if (element.formats) element.formats.htmlId = v;
+            }, { placeholder: 'my-element-id' }));
+            controls.push(new TextCtrl('cssClasses', 'Custom Classes', formats.cssClasses || '', (v) => {
+                if (element.domNode) element.domNode.className = v;
+                if (element.formats) element.formats.cssClasses = v;
+            }, { placeholder: 'shadow-lg rounded-xl' }));
+        }
+        if (TextareaCtrl) {
+            controls.push(new TextareaCtrl('customCss', 'Custom CSS Rules', formats.customCss || '', (v) => {
+                if (element.formats) element.formats.customCss = v;
+            }, { placeholder: '/* filter: blur(2px); */' }));
+        }
+
+        return controls;
     }
 
     loadDebugCss() {

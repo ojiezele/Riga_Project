@@ -35,11 +35,12 @@ export const createPool = () => {
   if (!global._postgresPool) {
     try {
       const connectionString = process.env.DATABASE_URL;
+      const useSsl = process.env.PG_SSL === 'true' || (connectionString && connectionString.includes('sslmode='));
       global._postgresPool = new Pool(
         connectionString
           ? {
               connectionString,
-              ssl: { rejectUnauthorized: false },
+              ssl: useSsl ? { rejectUnauthorized: false } : false,
               max: 10,
               connectionTimeoutMillis: 5000,
             }
@@ -49,7 +50,7 @@ export const createPool = () => {
               password: process.env.SQL_PASSWORD,
               database: process.env.SQL_DB_NAME,
               port: Number(process.env.SQL_PORT || 5432),
-              ssl: { rejectUnauthorized: false },
+              ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false,
               max: 10,
               connectionTimeoutMillis: 5000,
             }

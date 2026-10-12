@@ -80,16 +80,21 @@ class ElementFactory {
                 return LetterSpacingControl.parse(data);
             case 'TextDirectionControl':
                 return TextDirectionControl.parse(data);
+            case 'UniversalWidgetElement':
+                return window.UniversalWidgetElement ? window.UniversalWidgetElement.parse(data) : null;
 
             default:
-                console.warn(`Unknown element name: ${data.name}`);
-                if (typeof window[data.name] === 'function' && typeof window[data.name] === 'function') {
-                    console.warn(`Try to parse unknow element: ${data.name}`);
-                    return window[data.name].parse(data);
-                } else {
-                    alert(`Unknown element name: ${data.name}`);
-                    throw new Error(`Unknown element name: ${data}`);
+                if (data.widgetDef || (window.UniversalWidgetElement && data.widgetId)) {
+                    return window.UniversalWidgetElement.parse(data);
                 }
+                if (typeof window[data.name] === 'function' && typeof window[data.name].parse === 'function') {
+                    return window[data.name].parse(data);
+                }
+                if (window.UniversalWidgetElement) {
+                    return new window.UniversalWidgetElement({ id: data.name.replace('Element', ''), label: data.name }, data.props || {}, data.formats || data.styles || {});
+                }
+                console.warn(`ElementFactory fallback for: ${data.name}`);
+                return null;
         }
     }
 }

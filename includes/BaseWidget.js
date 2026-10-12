@@ -20,8 +20,16 @@ class BaseWidget {
         this.domNode = widgetDiv;
     }
 
+    getName() {
+        return 'Widget';
+    }
+
+    getIcon() {
+        return 'star';
+    }
+
     getSvgIcon() {
-        const iconType = this.getIcon();
+        const iconType = typeof this.getIcon === 'function' ? this.getIcon() : 'star';
         switch (iconType) {
             case 'title':
                 return `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10m-10 6h16"/></svg>`;

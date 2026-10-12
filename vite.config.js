@@ -20,7 +20,7 @@ import {
     listUserOrganizations,
     createUserOrganization
 } from './src/db/queries.ts';
-import { uploadToR2 } from './backend/services/r2Storage.js';
+import { uploadToR2, getObjectFromR2 } from './backend/services/r2Storage.js';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './src/lib/auth.ts';
 
@@ -593,6 +593,34 @@ function backendPlugin() {
                         res.statusCode = 500;
                         res.setHeader('Content-Type', 'application/json');
                         res.end(JSON.stringify({ error: { message: err.message } }));
+                    }
+                    return;
+                }
+
+                // GET /api/media/proxy (Stream media from Cloudflare R2)
+                if (url.pathname === '/api/media/proxy' && req.method === 'GET') {
+                    try {
+                        const key = url.searchParams.get('key');
+                        if (!key) {
+                            res.statusCode = 400;
+                            res.end(JSON.stringify({ message: 'Media key is required' }));
+                            return;
+                        }
+                        const obj = await getObjectFromR2(String(key));
+                        if (obj.ContentType) {
+                            res.setHeader('Content-Type', obj.ContentType);
+                        }
+                        res.setHeader('Cache-Control', 'public, max-age=86400');
+                        if (obj.Body) {
+                            obj.Body.pipe(res);
+                        } else {
+                            res.statusCode = 404;
+                            res.end(JSON.stringify({ message: 'Media object not found in R2' }));
+                        }
+                    } catch (err) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ error: err.message }));
                     }
                     return;
                 }
