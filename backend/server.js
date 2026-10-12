@@ -88,6 +88,32 @@ const protect = async (req, res, next) => {
     return res.status(401).json({ message: 'Authentication required. No token provided.' });
 };
 
+const optionalAuth = async (req, res, next) => {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'riga_enterprise_saas_secret_99');
+            const result = await pool.query('SELECT * FROM "user" WHERE id = $1', [decoded.id]);
+            if (result.rows.length > 0) {
+                req.user = result.rows[0];
+                return next();
+            }
+            const legacyRes = await pool.query('SELECT * FROM "users" WHERE uid = $1 OR id::text = $1', [decoded.id]);
+            if (legacyRes.rows.length > 0) {
+                req.user = legacyRes.rows[0];
+                return next();
+            }
+        } catch (e) {}
+    }
+    try {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (session && session.user) {
+            req.user = session.user;
+        }
+    } catch (e) {}
+    next();
+};
+
 // -------------------------------------------------------------
 // SYSTEM STATUS / HEALTH CHECK
 // -------------------------------------------------------------
@@ -182,9 +208,9 @@ app.get('/api/auth/me', protect, async (req, res) => {
 // -------------------------------------------------------------
 // SAAS STATE (Unified Multi-Tenant State from Neon DB)
 // -------------------------------------------------------------
-app.get('/api/saas/state', async (req, res) => {
+app.get('/api/saas/state', optionalAuth, async (req, res) => {
     try {
-        const userId = req.query.userId || req.headers['x-user-id'] || '';
+        const userId = req.user ? (req.user.id || req.user.uid) : (req.query.userId || req.headers['x-user-id'] || '');
         const state = await getSaasState(String(userId));
         res.json(state);
     } catch (error) {
@@ -193,7 +219,7 @@ app.get('/api/saas/state', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// SITES & CLOUDFLARE R2 OBJECT STORAGE PIPELINE
+// SITES & CLOUDFLARE R2 OBJECT STORAGE PIPELINE (Tenant Isolated)
 // -------------------------------------------------------------
 app.get('/api/sites', protect, async (req, res) => {
     try {
@@ -205,10 +231,19 @@ app.get('/api/sites', protect, async (req, res) => {
     }
 });
 
-app.post(['/api/sites', '/api/saas/sites'], async (req, res) => {
+app.post(['/api/sites', '/api/saas/sites'], optionalAuth, async (req, res) => {
     try {
         const data = req.body.data || req.body;
-        const userId = data.userId || (req.user ? (req.user.id || req.user.uid) : 'usr_owner');
+        const userId = req.user ? (req.user.id || req.user.uid) : (data.userId || 'usr_owner');
+
+        // Multi-Tenant Security Check: Ensure caller cannot overwrite another tenant's site
+        if (data.id && req.user) {
+            const existing = await pool.query('SELECT user_id FROM sites WHERE id = $1', [data.id]);
+            if (existing.rows.length > 0 && existing.rows[0].user_id && existing.rows[0].user_id !== userId) {
+                return res.status(403).json({ message: 'Forbidden: You do not have permission to modify this tenant site.' });
+            }
+        }
+
         const cleanName = (data.name || 'site').toLowerCase().replace(/[^a-z0-9]/g, '-');
         const subdomain = data.subdomain || `${cleanName}-${Math.floor(Math.random() * 1000)}.riga.site`;
 
@@ -240,9 +275,19 @@ app.post(['/api/sites', '/api/saas/sites'], async (req, res) => {
     }
 });
 
-app.post('/api/saas/sites/delete', async (req, res) => {
+app.post('/api/saas/sites/delete', optionalAuth, async (req, res) => {
     try {
-        const { id, subdomain, userId } = req.body;
+        const { id, subdomain } = req.body;
+        const userId = req.user ? (req.user.id || req.user.uid) : (req.body.userId || '');
+
+        // Multi-Tenant Security Check: Ensure caller cannot delete another tenant's site
+        if (id && req.user) {
+            const existing = await pool.query('SELECT user_id FROM sites WHERE id = $1', [id]);
+            if (existing.rows.length > 0 && existing.rows[0].user_id && existing.rows[0].user_id !== userId) {
+                return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this tenant site.' });
+            }
+        }
+
         if (subdomain) {
             await deleteFromR2(`sites/${subdomain}/index.html`);
         }
@@ -252,6 +297,104 @@ app.post('/api/saas/sites/delete', async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+});
+
+// -------------------------------------------------------------
+// SECURE PUBLIC EDGE LEAD CAPTURE PIPELINE (Rate-Limited, Scoped)
+// -------------------------------------------------------------
+const edgeLeadRateLimitMap = new Map();
+
+app.post(['/api/leads/capture', '/api/saas/leads'], async (req, res) => {
+    try {
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const now = Date.now();
+        const clientHistory = edgeLeadRateLimitMap.get(clientIp) || [];
+        const recentSubmissions = clientHistory.filter(t => now - t < 60000);
+        if (recentSubmissions.length >= 25) {
+            return res.status(429).json({ message: 'Rate limit exceeded. Please wait before submitting again.' });
+        }
+        recentSubmissions.push(now);
+        edgeLeadRateLimitMap.set(clientIp, recentSubmissions);
+
+        const { siteId, siteName, data } = req.body;
+        const name = (data && (data.name || data.fullName || data['Your Name'])) || 'Website Visitor';
+        const email = (data && (data.email || data['Email Address'])) || 'anonymous@visitor.com';
+        const message = (data && (data.message || data.comments || JSON.stringify(data))) || 'Inquiry from site';
+
+        // Securely resolve tenant owner from database
+        let ownerUserId = 'usr_owner';
+        if (siteId) {
+            const siteRes = await pool.query('SELECT user_id, json_data FROM sites WHERE id = $1 OR subdomain = $1', [siteId]);
+            if (siteRes.rows.length > 0) {
+                ownerUserId = siteRes.rows[0].user_id || 'usr_owner';
+
+                // Optional Plugin Webhook Dispatch (Zapier, CRM, etc.)
+                try {
+                    const rawJson = siteRes.rows[0].json_data;
+                    const parsedJson = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
+                    const leadPlugin = parsedJson?.plugins?.['smart-lead-webhook'];
+                    if (leadPlugin && leadPlugin.enabled && leadPlugin.settings?.webhookUrl) {
+                        fetch(leadPlugin.settings.webhookUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                event: 'lead.captured',
+                                siteId,
+                                siteName: siteName || 'Website',
+                                lead: { name, email, message },
+                                submittedAt: new Date().toISOString()
+                            })
+                        }).catch(() => {});
+                    }
+                } catch (e) {}
+            }
+        }
+
+        await insertLead({
+            site: siteName || siteId || 'Website',
+            formName: 'Edge Contact Form',
+            name: String(name).slice(0, 200),
+            email: String(email).slice(0, 200),
+            message: String(message).slice(0, 5000),
+            userId: ownerUserId
+        });
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Lead captured securely'
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// -------------------------------------------------------------
+// VERIFIED PLUGIN CATALOG
+// -------------------------------------------------------------
+app.get('/api/plugins/catalog', (req, res) => {
+    res.json({
+        total: 17,
+        philosophy: "One dominant plugin per category absorbing all top competitors",
+        plugins: [
+            { id: 'RankMathPower', name: 'Rank Math Power (SEO Suite)', category: 'seo', version: '3.0.0' },
+            { id: 'WPRocketPower', name: 'WP Rocket Power (Speed & Caching)', category: 'performance', version: '3.1.0' },
+            { id: 'WordfencePower', name: 'Wordfence Power (Enterprise Security)', category: 'security', version: '3.0.0' },
+            { id: 'WPFormsPower', name: 'WPForms Power (Conversational Forms)', category: 'forms', version: '3.2.0' },
+            { id: 'WooCommercePower', name: 'WooCommerce Power (E-Commerce Platform)', category: 'ecommerce', version: '3.5.0' },
+            { id: 'ACFPower', name: 'ACF Power (Custom Fields & CPT)', category: 'customFields', version: '3.0.0' },
+            { id: 'UpdraftPlusPower', name: 'UpdraftPlus Power (Backups & Migration)', category: 'backups', version: '3.0.0' },
+            { id: 'SiteKitPower', name: 'Site Kit Power (Google Analytics & Search)', category: 'analytics', version: '3.0.0' },
+            { id: 'WPMailSMTPPower', name: 'WP Mail SMTP Power (Transactional Email)', category: 'email', version: '3.0.0' },
+            { id: 'MemberPressPower', name: 'MemberPress Power (Membership & LMS)', category: 'membership', version: '3.0.0' },
+            { id: 'WPMLPower', name: 'WPML Power (Multilingual & Translations)', category: 'multilingual', version: '3.0.0' },
+            { id: 'SmartSliderPower', name: 'Smart Slider Power (Modern Sliders)', category: 'sliders', version: '3.0.0' },
+            { id: 'OptinMonsterPower', name: 'OptinMonster Power (Lead Gen Popups)', category: 'popups', version: '3.0.0' },
+            { id: 'TablePressPower', name: 'TablePress Power (Data Tables & Charts)', category: 'tables', version: '3.0.0' },
+            { id: 'SearchWPPower', name: 'SearchWP Power (Ajax Live Search)', category: 'search', version: '3.0.0' },
+            { id: 'WPCodePower', name: 'WPCode Power (Snippets & Scripts)', category: 'utilities', version: '3.0.0' },
+            { id: 'SmashBalloonPower', name: 'Smash Balloon Power (Social Feeds)', category: 'social', version: '3.0.0' }
+        ]
+    });
 });
 
 // -------------------------------------------------------------

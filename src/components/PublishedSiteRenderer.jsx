@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Globe, Edit3, ArrowLeft, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 import { normalizeHtmlMediaAssets } from '../utils/siteCompiler.js';
+import { pluginManager } from '../utils/pluginEngine.js';
 
 export default function PublishedSiteRenderer({ 
     siteId, 
@@ -38,9 +39,29 @@ export default function PublishedSiteRenderer({
         );
     }
 
-    const normalizedHtml = site.htmlContent 
+    let normalizedHtml = site.htmlContent 
         ? normalizeHtmlMediaAssets(site.htmlContent, site.theme)
         : null;
+
+    if (normalizedHtml && site.jsonData) {
+        try {
+            const parsedJson = typeof site.jsonData === 'string' ? JSON.parse(site.jsonData) : site.jsonData;
+            if (parsedJson?.plugins) {
+                const bundle = pluginManager.generateClientRuntimeBundle({ jsonData: parsedJson, siteId: site.id, siteTitle: site.name });
+                if (bundle.css && !normalizedHtml.includes('riga-wa-float')) {
+                    normalizedHtml = normalizedHtml.includes('</head>') 
+                        ? normalizedHtml.replace('</head>', `<style id="riga-plugins-preview">${bundle.css}</style></head>`)
+                        : `<style id="riga-plugins-preview">${bundle.css}</style>${normalizedHtml}`;
+                }
+                if (bundle.js && !normalizedHtml.includes('riga-whatsapp-widget')) {
+                    normalizedHtml = normalizedHtml.includes('</body>')
+                        ? normalizedHtml.replace('</body>', `<script id="riga-plugins-runtime">${bundle.js}</script></body>`)
+                        : `${normalizedHtml}<script id="riga-plugins-runtime">${bundle.js}</script>`;
+                }
+            }
+        } catch (e) {}
+    }
+
     const directSiteUrl = `/sites/${site.id}`;
 
     return (

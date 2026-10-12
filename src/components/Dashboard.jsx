@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import RigaLogo from './RigaLogo.jsx';
 import { 
     Layout, Globe, Users, Shield, Plus, Search, ExternalLink, Edit3, Trash2, 
     BarChart3, Settings, LogOut, Sparkles, CheckCircle2, ChevronDown, Download,
     Layers, HardDrive, RefreshCw, AlertCircle, ArrowUpRight, Copy, Check, Eye,
     CopyPlus, Smartphone, Tablet, Monitor, X, Server, ArrowRight, Image as ImageIcon,
-    Inbox, History, UploadCloud, FileSpreadsheet, CheckCircle, Mail, MessageSquare, Menu
+    Inbox, History, UploadCloud, FileSpreadsheet, CheckCircle, Mail, MessageSquare, Menu,
+    Puzzle, ChevronRight
 } from 'lucide-react';
+import PluginConfigPage from './PluginConfigPage.jsx';
+import CustomPluginCreatePage from './CustomPluginCreatePage.jsx';
+import { pluginManager } from '../utils/pluginEngine.js';
 
 export default function Dashboard({ 
     user, 
@@ -21,12 +25,81 @@ export default function Dashboard({
     onUploadMedia,
     onDeleteMedia,
     onUpdateLeadStatus,
+    onUpdateSitePlugins,
+    notify,
     onLogout, 
     onGoToLanding 
 }) {
-    const [currentTab, setCurrentTab] = useState('sites'); // 'sites', 'analytics', 'media', 'leads', 'team', 'domains', 'templates', 'activity', 'settings'
+    const [currentTab, setCurrentTab] = useState('sites'); // 'sites', 'analytics', 'media', 'leads', 'team', 'domains', 'templates', 'activity', 'plugins', 'settings'
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    // Plugin Marketplace state
+    const [selectedSiteId, setSelectedSiteId] = useState(() => saasData?.sites?.[0]?.id || '');
+    const [pluginSearchQuery, setPluginSearchQuery] = useState('');
+    const [pluginCategoryFilter, setPluginCategoryFilter] = useState('all');
+
+    // Keep selected site in sync if sites list updates
+    useEffect(() => {
+        if (!selectedSiteId && saasData?.sites?.[0]?.id) {
+            setSelectedSiteId(saasData.sites[0].id);
+        }
+    }, [saasData?.sites, selectedSiteId]);
+
+    const currentSelectedSite = useMemo(() => {
+        return (saasData.sites || []).find(s => s.id === selectedSiteId) || saasData.sites?.[0] || null;
+    }, [saasData.sites, selectedSiteId]);
+
+    // Compute active plugins on the selected site
+    const activePluginsList = useMemo(() => {
+        if (!currentSelectedSite) return [];
+        try {
+            const parsed = typeof currentSelectedSite.jsonData === 'string' 
+                ? JSON.parse(currentSelectedSite.jsonData) 
+                : (currentSelectedSite.jsonData || {});
+            const pluginsObj = parsed?.plugins || {};
+            return Object.entries(pluginsObj)
+                .filter(([_, cfg]) => cfg && cfg.enabled)
+                .map(([id, cfg]) => {
+                    const def = pluginManager.getPlugin(id) || cfg.customManifest;
+                    return def ? { ...def, id: def.id || id } : null;
+                })
+                .filter(Boolean);
+        } catch (e) {
+            return [];
+        }
+    }, [currentSelectedSite, saasData.sites]);
+
+    const handleSavePluginsForSite = async (updatedPlugins, targetSiteId) => {
+        const siteId = targetSiteId || currentSelectedSite?.id;
+        if (!siteId) return;
+
+        if (onUpdateSitePlugins) {
+            onUpdateSitePlugins(updatedPlugins, siteId);
+        } else {
+            // Direct API fallback
+            try {
+                const targetSite = (saasData.sites || []).find(s => s.id === siteId);
+                if (targetSite) {
+                    let parsedJson = typeof targetSite.jsonData === 'string' ? JSON.parse(targetSite.jsonData) : (targetSite.jsonData || {});
+                    parsedJson.plugins = updatedPlugins;
+                    await fetch('/api/saas/sites', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: targetSite.id,
+                            name: targetSite.name,
+                            theme: targetSite.theme,
+                            status: targetSite.status,
+                            userId: targetSite.userId,
+                            subdomain: targetSite.subdomain,
+                            jsonData: parsedJson
+                        })
+                    });
+                }
+            } catch (e) {}
+        }
+    };
     
     // Modals
     const [showNewSiteModal, setShowNewSiteModal] = useState(false);
@@ -126,6 +199,32 @@ export default function Dashboard({
                               l.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               l.site.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesStatus && matchesSearch;
+    });
+
+    const allPluginsCatalog = pluginManager.getAllPlugins();
+    const filteredPluginCatalog = allPluginsCatalog.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(pluginSearchQuery.toLowerCase()) || 
+                              p.description.toLowerCase().includes(pluginSearchQuery.toLowerCase()) ||
+                              (p.category || '').toLowerCase().includes(pluginSearchQuery.toLowerCase());
+        const sitePluginsObj = (() => {
+            try {
+                const parsed = typeof currentSelectedSite?.jsonData === 'string' ? JSON.parse(currentSelectedSite.jsonData) : (currentSelectedSite?.jsonData || {});
+                return parsed.plugins || {};
+            } catch(e) { return {}; }
+        })();
+        const isEnabled = Boolean(sitePluginsObj[p.id]?.enabled);
+
+        if (!matchesSearch) return false;
+        if (pluginCategoryFilter === 'all') return true;
+        if (pluginCategoryFilter === 'installed') return isEnabled;
+        if (pluginCategoryFilter === 'custom') return p.isCustom;
+        if (pluginCategoryFilter === 'seo_analytics') return ['seo', 'analytics'].includes(p.category);
+        if (pluginCategoryFilter === 'performance_security') return ['performance', 'security'].includes(p.category);
+        if (pluginCategoryFilter === 'forms_marketing') return ['forms', 'marketing', 'popups'].includes(p.category);
+        if (pluginCategoryFilter === 'ecommerce_membership') return ['ecommerce', 'membership'].includes(p.category);
+        if (pluginCategoryFilter === 'data_content') return ['customFields', 'tables', 'search'].includes(p.category);
+        if (pluginCategoryFilter === 'media_social') return ['sliders', 'social', 'multilingual', 'email', 'utilities', 'compliance'].includes(p.category);
+        return p.category === pluginCategoryFilter;
     });
 
     // Mobile table pagination states
@@ -421,6 +520,52 @@ export default function Dashboard({
                         <History className="w-4 h-4 flex-shrink-0" />
                         <span>Activity</span>
                     </button>
+
+                    <button 
+                        onClick={() => { setCurrentTab('plugins'); setMobileMenuOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${currentTab === 'plugins' || currentTab.startsWith('plugin_') || currentTab === 'create_custom_plugin' ? 'bg-black text-white shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                    >
+                        <Puzzle className="w-4 h-4 flex-shrink-0" />
+                        <span>Plugins</span>
+                        <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium ${currentTab === 'plugins' || currentTab.startsWith('plugin_') ? 'bg-neutral-800 text-gray-200' : 'bg-gray-100 text-gray-600'}`}>
+                            {pluginManager.getAllPlugins().length}
+                        </span>
+                    </button>
+
+                    {/* DYNAMIC ACTIVE PLUGINS SIDEBAR POPULATION */}
+                    {activePluginsList.length > 0 && (
+                        <div className="pt-3 pb-1">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 mb-1.5 flex items-center justify-between">
+                                <span>Active Plugins</span>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 font-mono font-bold border border-emerald-200">
+                                    {activePluginsList.length}
+                                </span>
+                            </div>
+                            <div className="space-y-1">
+                                {activePluginsList.map(pluginItem => {
+                                    const isPluginTab = currentTab === `plugin_${pluginItem.id}`;
+                                    return (
+                                        <button
+                                            key={pluginItem.id}
+                                            onClick={() => {
+                                                setCurrentTab(`plugin_${pluginItem.id}`);
+                                                setMobileMenuOpen(false);
+                                            }}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                                isPluginTab 
+                                                    ? 'bg-black text-white shadow-xs' 
+                                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full shrink-0 ${isPluginTab ? 'bg-emerald-400 ring-2 ring-emerald-400/30' : 'bg-emerald-500'}`} />
+                                            <span className="truncate text-left flex-1">{pluginItem.shortName || pluginItem.name}</span>
+                                            <ChevronRight className={`w-3 h-3 shrink-0 opacity-40 ${isPluginTab ? 'text-white opacity-90' : ''}`} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-4 text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 mb-2">Workspace</div>
 
@@ -1334,7 +1479,7 @@ export default function Dashboard({
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-100">
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-extrabold text-gray-900 text-lg">{user?.plan || 'WordPress Pro SaaS'}</h3>
+                                                <h3 className="font-extrabold text-gray-900 text-lg">{user?.plan && !user.plan.includes('WordPress') ? user.plan : 'Riga Enterprise Pro'}</h3>
                                                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Tier
                                                 </span>
@@ -1347,7 +1492,7 @@ export default function Dashboard({
                                         </div>
                                     </div>
 
-                                    {/* 3 Shopify / WordPress Grade Enterprise Tiers */}
+                                    {/* 3 Riga Enterprise Cloud Tiers */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {/* Tier 1: Starter */}
                                         <div className={`p-4 rounded-xl border transition-all ${user?.plan === 'Starter Solo' ? 'border-black bg-gray-50/50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -1383,7 +1528,7 @@ export default function Dashboard({
                                         {/* Tier 2: Pro (Active) */}
                                         <div className={`p-4 rounded-xl border relative transition-all ${user?.plan !== 'Starter Solo' && user?.plan !== 'Riga Enterprise Multi-Tenant' ? 'border-black bg-neutral-900 text-white shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
                                             <span className="absolute -top-2.5 right-3 bg-indigo-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
-                                            <div className="font-bold text-sm">WordPress Pro SaaS</div>
+                                            <div className="font-bold text-sm">Riga Enterprise Pro</div>
                                             <div className="text-xl font-extrabold mt-1">$49<span className="text-xs font-normal opacity-70">/mo</span></div>
                                             <p className="text-[11px] opacity-70 mt-1 mb-3">Shopify-grade multi-tenant engine.</p>
                                             <ul className="space-y-1.5 text-[11px] opacity-90 mb-4">
@@ -1478,6 +1623,223 @@ export default function Dashboard({
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* TAB: PLUGINS & EXTENSIONS MARKETPLACE (REAL FULL PAGE - ZERO MODALS) */}
+                    {currentTab === 'plugins' && (
+                        <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Extensions & Plugins Hub</h1>
+                                    <p className="text-xs text-gray-500 mt-1">Supercharge your websites with 19 dominant enterprise extensions: SEO intelligence, edge performance, cybersecurity firewall, commerce, and custom client hooks.</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => setCurrentTab('create_custom_plugin')}
+                                        className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>Author Custom Extension</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Site Scope Selector Card */}
+                            <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-gray-800 shrink-0">
+                                        <Globe className="w-5 h-5 text-gray-700" />
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-gray-900 flex items-center gap-2">
+                                            <span>Configuring Extensions For:</span>
+                                            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-mono text-[10px] font-bold border border-emerald-200">
+                                                {currentSelectedSite?.name || 'My Site'}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-400">
+                                            Subdomain: <strong className="text-gray-600 font-mono">{currentSelectedSite?.subdomain || 'site.riga.site'}</strong> · Active Extensions: <strong className="text-emerald-600">{activePluginsList.length}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {saasData.sites?.length > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 font-medium">Switch Target Site:</span>
+                                        <select
+                                            value={currentSelectedSite?.id}
+                                            onChange={(e) => setSelectedSiteId(e.target.value)}
+                                            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-black cursor-pointer"
+                                        >
+                                            {saasData.sites.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name} ({s.subdomain || 'site'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Search and Category Filter Toolbar */}
+                            <div className="space-y-4 mb-6">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                    <div className="relative w-full sm:w-96">
+                                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                        <input 
+                                            type="text"
+                                            value={pluginSearchQuery}
+                                            onChange={(e) => setPluginSearchQuery(e.target.value)}
+                                            placeholder="Search Apex SEO, TurboSpeed, CyberShield, FormFlow..."
+                                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-2xs"
+                                        />
+                                    </div>
+
+                                    <div className="text-xs font-semibold text-gray-500">
+                                        Showing <strong className="text-gray-900">{filteredPluginCatalog.length}</strong> of {pluginManager.getAllPlugins().length} extensions
+                                    </div>
+                                </div>
+
+                                {/* Category Chips */}
+                                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                    {[
+                                        { id: 'all', label: `All Extensions (${pluginManager.getAllPlugins().length})` },
+                                        { id: 'installed', label: `Active on Site (${activePluginsList.length})` },
+                                        { id: 'seo_analytics', label: 'SEO & Analytics' },
+                                        { id: 'performance_security', label: 'Speed & Firewall' },
+                                        { id: 'forms_marketing', label: 'Forms & Leads' },
+                                        { id: 'ecommerce_membership', label: 'Store & LMS' },
+                                        { id: 'data_content', label: 'Data & Matrix' },
+                                        { id: 'media_social', label: 'Media & Chat' },
+                                        { id: 'custom', label: 'Custom Developer' }
+                                    ].map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setPluginCategoryFilter(tab.id)}
+                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                                                pluginCategoryFilter === tab.id 
+                                                    ? 'bg-black text-white shadow-xs' 
+                                                    : 'bg-white border border-gray-200 text-gray-600 hover:text-black hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Extensions Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredPluginCatalog.map(pluginItem => {
+                                    const sitePluginsObj = (() => {
+                                        try {
+                                            const p = typeof currentSelectedSite?.jsonData === 'string' ? JSON.parse(currentSelectedSite.jsonData) : (currentSelectedSite?.jsonData || {});
+                                            return p.plugins || {};
+                                        } catch(e) { return {}; }
+                                    })();
+                                    const isEnabled = Boolean(sitePluginsObj[pluginItem.id]?.enabled);
+
+                                    return (
+                                        <div 
+                                            key={pluginItem.id} 
+                                            className={`bg-white border rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:shadow-md ${
+                                                isEnabled ? 'border-gray-900 shadow-2xs' : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center font-bold text-gray-800 shrink-0">
+                                                        <Puzzle className="w-5 h-5 text-gray-700" />
+                                                    </div>
+                                                    
+                                                    {/* Instant Activation Toggle */}
+                                                    <button
+                                                        onClick={() => {
+                                                            const nextState = !isEnabled;
+                                                            const updated = {
+                                                                ...sitePluginsObj,
+                                                                [pluginItem.id]: {
+                                                                    enabled: nextState,
+                                                                    settings: sitePluginsObj[pluginItem.id]?.settings || pluginItem.defaultSettings || {}
+                                                                }
+                                                            };
+                                                            handleSavePluginsForSite(updated, currentSelectedSite?.id);
+                                                            if (notify) notify(nextState ? `Activated ${pluginItem.name}` : `Deactivated ${pluginItem.name}`);
+                                                        }}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                            isEnabled ? 'bg-black' : 'bg-gray-200'
+                                                        }`}
+                                                        title={isEnabled ? 'Click to deactivate' : 'Click to activate'}
+                                                    >
+                                                        <span
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                                                isEnabled ? 'translate-x-5' : 'translate-x-0'
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                </div>
+
+                                                <div>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h3 className="font-extrabold text-sm text-gray-900 leading-snug">{pluginItem.name}</h3>
+                                                        <span className="text-[10px] font-mono font-semibold px-2 py-0.2 rounded-full bg-gray-100 text-gray-700">
+                                                            v{pluginItem.version}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                                        {pluginItem.category} · {pluginItem.author}
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
+                                                    {pluginItem.description}
+                                                </p>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="pt-5 mt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-1.5 text-xs">
+                                                    <span className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                                                    <span className="font-semibold text-gray-700">{isEnabled ? 'Active' : 'Inactive'}</span>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setCurrentTab(`plugin_${pluginItem.id}`)}
+                                                    className="px-3.5 py-1.5 rounded-xl bg-gray-100 hover:bg-black hover:text-white text-gray-900 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                                                >
+                                                    <Settings className="w-3.5 h-3.5" />
+                                                    <span>Manage Page</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DEDICATED FULL-PAGE PLUGIN CONFIGURATION VIEW (NO MODALS) */}
+                    {currentTab.startsWith('plugin_') && (
+                        <PluginConfigPage
+                            pluginId={currentTab.replace('plugin_', '')}
+                            site={currentSelectedSite}
+                            allSites={saasData.sites || []}
+                            onSelectSite={(id) => setSelectedSiteId(id)}
+                            onUpdatePlugins={handleSavePluginsForSite}
+                            onBack={() => setCurrentTab('plugins')}
+                            notify={notify || alert}
+                        />
+                    )}
+
+                    {/* DEDICATED FULL-PAGE AUTHOR CUSTOM PLUGIN VIEW (NO MODALS) */}
+                    {currentTab === 'create_custom_plugin' && (
+                        <CustomPluginCreatePage
+                            site={currentSelectedSite}
+                            onSaveSuccess={(up, newId) => {
+                                handleSavePluginsForSite(up, currentSelectedSite?.id);
+                                setCurrentTab(`plugin_${newId}`);
+                            }}
+                            onBack={() => setCurrentTab('plugins')}
+                            notify={notify || alert}
+                        />
                     )}
                 </div>
             </main>

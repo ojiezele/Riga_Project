@@ -10,7 +10,23 @@
  <meta name="generator" content="AcelleSystemLayouts">
  <title>Listing &amp; Tables</title>
 
+ <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+ <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+ <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
  <style>
+ .riga-svg-icon {
+ display: inline-block;
+ vertical-align: middle;
+ flex-shrink: 0;
+ }
+ .riga-widget-wrapper {
+ box-sizing: border-box;
+ font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+ }
+ .riga-btn:hover {
+ filter: brightness(0.92);
+ }
  .copyright-inline {
  display: inline-flex;
  align-items: center;

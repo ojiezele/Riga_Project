@@ -98,10 +98,13 @@ import {
     ToggleControl,
     MediaPickerControl,
     IconPickerControl,
-    SectionHeaderControl
+    SectionHeaderControl,
+    SubStyleSelectorControl
 } from './includes/ElementorControls.js';
+import { renderSvgIcon } from './includes/SvgIcons.js';
 
 // Attach all classes to the global `window` object
+window.renderSvgIcon = renderSvgIcon;
 window.ControlBase = ControlBase;
 window.ModernTextControl = ModernTextControl;
 window.TextareaControl = TextareaControl;
@@ -114,6 +117,7 @@ window.ToggleControl = ToggleControl;
 window.MediaPickerControl = MediaPickerControl;
 window.IconPickerControl = IconPickerControl;
 window.SectionHeaderControl = SectionHeaderControl;
+window.SubStyleSelectorControl = SubStyleSelectorControl;
 
 window.UniversalWidgetElement = UniversalWidgetElement;
 window.CatalogWidget = CatalogWidget;

@@ -48,6 +48,14 @@ class PageElement extends BaseElement {
             this.builder.iframeDoc.write(htmlContent);
             this.builder.iframeDoc.close();
 
+            if (this.builder.iframeDoc.head && !this.builder.iframeDoc.head.querySelector('#riga-injected-fonts')) {
+                const link = this.builder.iframeDoc.createElement('link');
+                link.id = 'riga-injected-fonts';
+                link.rel = 'stylesheet';
+                link.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap';
+                this.builder.iframeDoc.head.appendChild(link);
+            }
+
             // set page dom
             this.domNode = this.builder.iframeDoc.body.querySelector('[builder-element="PageElement"]');
         }

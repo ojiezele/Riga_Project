@@ -10,6 +10,8 @@
  * 7. Generates version hash, compile metrics (bundle size, compile timestamp)
  */
 
+import { pluginManager } from './pluginEngine.js';
+
 /**
  * Normalizes all media assets, icon fonts, and vector graphics in an HTML document
  * so it renders reliably across external browser tabs, standalone domains, and iframes.
@@ -188,10 +190,19 @@ export function compileWebsiteForProduction({
         // 4. Normalize all media files, image URLs, icons, and base hrefs
         cleanHtml = normalizeHtmlMediaAssets(cleanHtml, theme);
 
+        // 4b. Execute Active Plugin Compile-Time Transformations (GA4, Custom Tags)
+        try {
+            cleanHtml = pluginManager.applyCompileTransforms(cleanHtml, { jsonData, siteId, siteTitle });
+        } catch (e) {
+            console.warn('[SiteCompiler] Plugin compile transform warning:', e);
+        }
+        const pluginBundle = pluginManager.generateClientRuntimeBundle({ jsonData, siteId, siteTitle });
+
         // 5. Inject production CSS reset & modern responsive typography overrides if not present
         const productionOptimizationCss = `
 <style id="riga-production-engine-styles">
   /* Riga Production Edge Compiler Optimizations */
+  ${pluginBundle.css ? `/* Plugin Injected Styles */\n${pluginBundle.css}\n` : ''}
   html, body {
     margin: 0;
     padding: 0;
@@ -236,7 +247,116 @@ export function compileWebsiteForProduction({
         const productionClientScript = `
 <script id="riga-edge-runtime-script">
   (function() {
-    // Intercept contact forms and submit to tenant's Riga SaaS Leads CRM
+    // 1. Interactive Accordion
+    document.addEventListener('click', function(e) {
+      var header = e.target.closest('.riga-accordion-header');
+      if (header) {
+        var item = header.closest('.riga-accordion-item');
+        if (item) {
+          var content = item.querySelector('.riga-accordion-content');
+          var chevron = item.querySelector('.riga-accordion-chevron');
+          if (content) {
+            var isHidden = content.style.display === 'none';
+            content.style.display = isHidden ? 'block' : 'none';
+            if (chevron) chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+          }
+        }
+      }
+    });
+
+    // 2. Interactive Tabs
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('.riga-tab-btn');
+      if (btn) {
+        var container = btn.closest('.riga-tabs');
+        if (container) {
+          var idx = btn.getAttribute('data-tab-idx');
+          container.querySelectorAll('.riga-tab-btn').forEach(function(b) {
+            b.classList.remove('active-tab', 'bg-black', 'text-white');
+            b.classList.add('bg-gray-100', 'text-gray-700');
+          });
+          btn.classList.add('active-tab', 'bg-black', 'text-white');
+          btn.classList.remove('bg-gray-100', 'text-gray-700');
+          container.querySelectorAll('.riga-tab-pane').forEach(function(pane) {
+            pane.style.display = pane.getAttribute('data-tab-pane-idx') === idx ? 'block' : 'none';
+          });
+        }
+      }
+    });
+
+    // 3. Interactive Star Rating
+    document.addEventListener('click', function(e) {
+      var starBtn = e.target.closest('.riga-star-btn');
+      if (starBtn) {
+        var container = starBtn.closest('[data-sub-elem="starRating"]');
+        if (container) {
+          var clickedIdx = parseInt(starBtn.getAttribute('data-star-idx'), 10);
+          var scoreEl = container.querySelector('.riga-rating-score');
+          if (scoreEl) scoreEl.textContent = clickedIdx.toFixed(1);
+          container.querySelectorAll('.riga-star-btn').forEach(function(s) {
+            var idx = parseInt(s.getAttribute('data-star-idx'), 10);
+            s.style.color = idx <= clickedIdx ? '#f59e0b' : '#d1d5db';
+          });
+        }
+      }
+    });
+
+    // 4. Interactive Countdown Timer
+    var daysEl = document.querySelector('[data-countdown="days"]');
+    var hrsEl = document.querySelector('[data-countdown="hours"]');
+    var minsEl = document.querySelector('[data-countdown="mins"]');
+    var secsEl = document.querySelector('[data-countdown="secs"]');
+    if (daysEl && hrsEl && minsEl && secsEl) {
+      var totalSeconds = 3 * 86400 + 14 * 3600 + 42 * 60 + 18;
+      setInterval(function() {
+        totalSeconds = Math.max(0, totalSeconds - 1);
+        var d = Math.floor(totalSeconds / 86400);
+        var h = Math.floor((totalSeconds % 86400) / 3600);
+        var m = Math.floor((totalSeconds % 3600) / 60);
+        var s = totalSeconds % 60;
+        daysEl.textContent = String(d).padStart(2, '0');
+        hrsEl.textContent = String(h).padStart(2, '0');
+        minsEl.textContent = String(m).padStart(2, '0');
+        secsEl.textContent = String(s).padStart(2, '0');
+      }, 1000);
+    }
+
+    // 5. Interactive FlipBox
+    document.addEventListener('click', function(e) {
+      var flipWrapper = e.target.closest('.riga-flip-wrapper');
+      if (flipWrapper) {
+        var inner = flipWrapper.querySelector('.riga-flip-inner');
+        if (inner) inner.classList.toggle('flipped');
+      }
+    });
+
+    // 6. Interactive Alert Dismiss
+    document.addEventListener('click', function(e) {
+      var dismiss = e.target.closest('.riga-alert-dismiss');
+      if (dismiss) {
+        var alertBox = dismiss.closest('.riga-alert-box');
+        if (alertBox) {
+          alertBox.style.opacity = '0';
+          alertBox.style.transform = 'scale(0.96)';
+          alertBox.style.transition = 'all 0.25s ease';
+          setTimeout(function() { alertBox.style.display = 'none'; }, 250);
+        }
+      }
+    });
+
+    // 7. Interactive Add to Cart
+    document.addEventListener('click', function(e) {
+      var cartBtn = e.target.closest('.riga-add-to-cart-btn');
+      if (cartBtn) {
+        var count = parseInt(cartBtn.getAttribute('data-cart-count') || 0, 10) + 1;
+        cartBtn.setAttribute('data-cart-count', count);
+        cartBtn.classList.add('bg-emerald-600');
+        cartBtn.innerHTML = '✓ Added to Cart (' + count + ')';
+        setTimeout(function() { cartBtn.classList.remove('bg-emerald-600'); }, 1500);
+      }
+    });
+
+    // 8. Lead Capture & Contact Form Submissions
     document.addEventListener('submit', function(e) {
       var form = e.target;
       if (form.tagName.toLowerCase() === 'form') {
@@ -257,18 +377,33 @@ export function compileWebsiteForProduction({
           submitBtn.disabled = true;
         }
 
-        fetch('/api/saas/leads', {
+        // Secure multi-tenant lead capture endpoint with fallback
+        fetch('/api/leads/capture', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        }).then(function(res) { return res.json(); })
-          .then(function(data) {
-            var toast = document.createElement('div');
-            toast.className = 'riga-lead-toast';
-            toast.innerText = 'Thank you! Your message has been sent successfully.';
-            document.body.appendChild(toast);
-            form.reset();
-            setTimeout(function() { toast.remove(); }, 4000);
+        }).then(function(res) {
+          if (!res.ok) {
+            return fetch('/api/saas/leads', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }).then(function(r) { return r.json(); });
+          }
+          return res.json();
+        }).then(function(data) {
+            var successBanner = form.closest('.riga-form-card') ? form.closest('.riga-form-card').querySelector('.riga-form-success') : null;
+            if (successBanner) {
+              form.style.display = 'none';
+              successBanner.style.display = 'block';
+            } else {
+              var toast = document.createElement('div');
+              toast.className = 'riga-lead-toast';
+              toast.innerText = 'Thank you! Your message has been sent successfully.';
+              document.body.appendChild(toast);
+              form.reset();
+              setTimeout(function() { toast.remove(); }, 4000);
+            }
           }).catch(function(err) {
             alert('Thank you! Your response has been recorded.');
           }).finally(function() {
@@ -281,6 +416,8 @@ export function compileWebsiteForProduction({
       }
     });
   })();
+
+  ${pluginBundle.js ? `\n  /* Riga Active Plugin Client Runtime Bundle */\n  ${pluginBundle.js}\n` : ''}
 </script>
 `;
 

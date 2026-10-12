@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Lock, Mail, User, ShieldCheck, Sparkles, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Lock, Mail, User, ShieldCheck, Sparkles, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import RigaLogo from './RigaLogo.jsx';
 import { authClient } from '../lib/auth-client.ts';
 
@@ -8,6 +8,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -22,7 +23,6 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
         setLoading(true);
         try {
             if (mode === 'login') {
-                // Primary: Better Auth Client Sign In
                 const baRes = await authClient.signIn.email({
                     email,
                     password,
@@ -36,7 +36,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                         name: baRes.data.user.name || email.split('@')[0],
                         email: baRes.data.user.email || email,
                         role: baRes.data.user.role || 'Owner',
-                        plan: baRes.data.user.plan || 'WordPress Pro SaaS',
+                        plan: baRes.data.user.plan && !baRes.data.user.plan.includes('WordPress') ? baRes.data.user.plan : 'Riga Enterprise Pro',
                         organizationId: baRes.data.user.organizationId,
                         workspace: `${baRes.data.user.name || 'Owner'}'s Workspace`,
                         token: baRes.data.token
@@ -44,7 +44,6 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                     return;
                 }
 
-                // If user exists in legacy records or needs auto-migration, hit seamless migration endpoint
                 const loginRes = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -60,7 +59,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                         name: loginData.name || email.split('@')[0],
                         email: loginData.email || email,
                         role: loginData.role || 'Owner',
-                        plan: loginData.plan || 'WordPress Pro SaaS',
+                        plan: loginData.plan && !loginData.plan.includes('WordPress') ? loginData.plan : 'Riga Enterprise Pro',
                         organizationId: loginData.organization?.id,
                         workspace: loginData.organization?.name || 'Main Workspace',
                         token: loginData.token
@@ -71,7 +70,6 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                 setLoading(false);
                 setError(baRes?.error?.message || loginData.message || 'Invalid email or password.');
             } else {
-                // Primary: Better Auth Client Sign Up
                 const baRes = await authClient.signUp.email({
                     email,
                     password,
@@ -86,7 +84,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                         name: baRes.data.user.name || name || email.split('@')[0],
                         email: baRes.data.user.email || email,
                         role: baRes.data.user.role || 'Owner',
-                        plan: baRes.data.user.plan || 'WordPress Pro SaaS',
+                        plan: 'Riga Enterprise Pro',
                         organizationId: baRes.data.user.organizationId,
                         workspace: `${baRes.data.user.name || name || 'Owner'}'s Workspace`,
                         token: baRes.data.token
@@ -94,7 +92,6 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                     return;
                 }
 
-                // Fallback direct Better Auth register endpoint
                 const regRes = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -110,7 +107,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
                         name: regData.name || name,
                         email: regData.email || email,
                         role: regData.role || 'Owner',
-                        plan: regData.plan || 'WordPress Pro SaaS',
+                        plan: 'Riga Enterprise Pro',
                         organizationId: regData.organizationId,
                         workspace: regData.workspace || 'Main Workspace',
                         token: regData.token
@@ -132,124 +129,128 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding }) {
             <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
                 <button 
                     onClick={onBackToLanding}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black mb-6 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black mb-6 transition-colors bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-2xs"
                 >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Home</span>
                 </button>
 
-                <div className="flex justify-center mb-3">
+                <div className="flex justify-center mb-4">
                     <RigaLogo size="lg" />
                 </div>
-                <h2 className="text-center text-xl font-bold tracking-tight text-gray-900">
-                    {mode === 'login' ? 'Welcome back' : 'Create account'}
+                <h2 className="text-center text-2xl font-extrabold text-gray-950 tracking-tight">
+                    {mode === 'login' ? 'Welcome back to Riga' : 'Create your Enterprise Account'}
                 </h2>
-                <p className="mt-1 text-center text-xs text-gray-500">
-                    Manage your hosted websites, custom domains, and visual builder projects.
+                <p className="mt-2 text-center text-xs text-gray-500">
+                    {mode === 'login' ? 'Enter your credentials to access your workspace' : 'Deploy high-speed multi-tenant sites instantly'}
                 </p>
-
-                {/* Better Auth & Neon Badge */}
-                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 py-1 px-3 rounded-full mx-auto w-fit">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Better Auth & Neon DB Active</span>
-                </div>
             </div>
 
-            <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
-                <div className="bg-white border border-gray-200 py-6 sm:py-8 px-4 sm:px-10 rounded-2xl shadow-xl">
-                    {/* Mode Toggle Pills */}
-                    <div className="flex p-1 bg-gray-100 rounded-xl border border-gray-200 mb-6">
-                        <button 
-                            type="button"
-                            onClick={() => { setMode('login'); setError(''); }}
-                            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${mode === 'login' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
-                        >
-                            Login
-                        </button>
-                        <button 
-                            type="button"
-                            onClick={() => { setMode('register'); setError(''); }}
-                            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${mode === 'register' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
-                        >
-                            Register
-                        </button>
-                    </div>
-
+            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
+                <div className="bg-white py-8 px-6 shadow-xl rounded-3xl border border-gray-200/80 sm:px-10">
                     {error && (
-                        <div className="p-3 mb-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs">
-                            {error}
+                        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                            <span>{error}</span>
                         </div>
                     )}
 
                     <form className="space-y-4" onSubmit={handleSubmit}>
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Name</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                         <User className="w-4 h-4" />
                                     </div>
-                                    <input
-                                        type="text"
-                                        required
+                                    <input 
+                                        type="text" 
+                                        required 
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
-                                        placeholder="Alex Rivera"
-                                        className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
+                                        placeholder="Jane Doe"
+                                        className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                     />
                                 </div>
                             </div>
                         )}
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Email</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                     <Mail className="w-4 h-4" />
                                 </div>
-                                <input
-                                    type="email"
-                                    required
+                                <input 
+                                    type="email" 
+                                    required 
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="ojiezele0@gmail.com"
-                                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
+                                    placeholder="jane@company.com"
+                                    className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Password</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                     <Lock className="w-4 h-4" />
                                 </div>
-                                <input
-                                    type="password"
-                                    required
+                                <input 
+                                    type={showPassword ? 'text' : 'password'}
+                                    required 
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••••••"
-                                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
+                                    className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 cursor-pointer"
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-2.5 px-4 rounded-xl text-white bg-black hover:bg-neutral-800 text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
-                        >
-                            {loading ? (
-                                <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
-                            ) : (
-                                <>
-                                    <span>{mode === 'login' ? 'Login with Better Auth' : 'Register with Better Auth'}</span>
-                                    <ArrowRight className="w-4 h-4" />
-                                </>
-                            )}
-                        </button>
+                        <div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-3 px-4 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <span>{mode === 'login' ? 'Sign In to Workspace' : 'Create Account'}</span>
+                                        <ArrowRight className="w-4 h-4" />
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </form>
+
+                    <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                        <button
+                            onClick={() => {
+                                setMode(mode === 'login' ? 'register' : 'login');
+                                setError('');
+                            }}
+                            className="text-xs font-semibold text-gray-600 hover:text-black transition-colors"
+                        >
+                            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-6 text-center text-[11px] text-gray-400 flex items-center justify-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Better Auth RBAC Secured · Neon Postgres Multi-Tenant Isolation</span>
                 </div>
             </div>
         </div>

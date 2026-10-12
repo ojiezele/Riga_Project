@@ -4,6 +4,8 @@
  * Provides controls for Content, Style, and Advanced tabs matching Elementor & Webflow
  */
 
+import { renderSvgIcon } from './SvgIcons.js';
+
 export class ControlBase {
     constructor(id, label, value, onChange, options = {}) {
         this.id = id;
@@ -574,17 +576,18 @@ export class IconPickerControl extends ControlBase {
             const btn = document.createElement('button');
             btn.type = 'button';
             const isActive = this.value === ic;
-            btn.className = `p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+            btn.className = `p-2 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 isActive ? 'bg-black text-white shadow-2xs' : 'bg-white text-gray-700 hover:bg-gray-200/80 border border-gray-200'
             }`;
-            btn.innerHTML = `<span class="material-symbols-rounded text-sm">${ic}</span>`;
+            const svgRender = (typeof window !== 'undefined' && window.renderSvgIcon) ? window.renderSvgIcon : renderSvgIcon;
+            btn.innerHTML = svgRender(ic, { size: '16px', color: 'currentColor' });
             btn.title = ic;
 
             btn.addEventListener('click', () => {
                 grid.querySelectorAll('button').forEach(b => {
-                    b.className = 'p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer bg-white text-gray-700 hover:bg-gray-200/80 border border-gray-200';
+                    b.className = 'p-2 rounded-lg flex items-center justify-center transition-all cursor-pointer bg-white text-gray-700 hover:bg-gray-200/80 border border-gray-200';
                 });
-                btn.className = 'p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer bg-black text-white shadow-2xs';
+                btn.className = 'p-2 rounded-lg flex items-center justify-center transition-all cursor-pointer bg-black text-white shadow-2xs';
                 this.value = ic;
                 if (typeof this.onChange === 'function') this.onChange(ic);
             });
@@ -596,3 +599,57 @@ export class IconPickerControl extends ControlBase {
         return wrapper;
     }
 }
+
+export class SubStyleSelectorControl {
+    constructor(activeSub, sections, onChange) {
+        this.activeSub = activeSub;
+        this.sections = sections; // Array of { id, label, icon }
+        this.onChange = onChange;
+        this.domNode = this.render();
+    }
+
+    render() {
+        const wrap = document.createElement('div');
+        wrap.className = 'sub-style-selector mb-3 p-1 bg-gray-100/90 rounded-xl border border-gray-200';
+
+        const title = document.createElement('div');
+        title.className = 'text-[9px] font-extrabold uppercase tracking-wider text-gray-500 px-1 py-0.5 mb-1 flex items-center justify-between';
+        title.innerHTML = `<span>Customize Component Element</span><span class="text-[8px] bg-white px-1.5 py-0.2 rounded text-gray-700 font-bold border border-gray-200">Sub-Styles</span>`;
+        wrap.appendChild(title);
+
+        const list = document.createElement('div');
+        list.className = 'flex flex-wrap gap-1';
+
+        this.sections.forEach(sec => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = this.activeSub === sec.id;
+            btn.className = `flex-1 min-w-[70px] py-1 px-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                isSelected ? 'bg-black text-white shadow-2xs' : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+            }`;
+            if (sec.icon) {
+                const iconSpan = document.createElement('span');
+                iconSpan.innerHTML = sec.icon;
+                btn.appendChild(iconSpan);
+            }
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = sec.label;
+            btn.appendChild(labelSpan);
+
+            btn.addEventListener('click', () => {
+                this.activeSub = sec.id;
+                list.querySelectorAll('button').forEach(b => {
+                    b.className = 'flex-1 min-w-[70px] py-1 px-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 cursor-pointer';
+                });
+                btn.className = 'flex-1 min-w-[70px] py-1 px-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-black text-white shadow-2xs cursor-pointer';
+                if (typeof this.onChange === 'function') this.onChange(sec.id);
+            });
+
+            list.appendChild(btn);
+        });
+
+        wrap.appendChild(list);
+        return wrap;
+    }
+}
+

@@ -277,6 +277,65 @@ export default function App() {
         }
     };
 
+    // Update Plugins for Site
+    const handleUpdateSitePlugins = async (pluginsConfig, siteId) => {
+        try {
+            const currentSite = (saasData.sites || []).find(s => s.id === siteId) || saasData.sites?.[0];
+            if (!currentSite) return;
+
+            let parsedJson = {};
+            try {
+                parsedJson = typeof currentSite.jsonData === 'string' ? JSON.parse(currentSite.jsonData) : (currentSite.jsonData || {});
+            } catch (e) {}
+            parsedJson.plugins = pluginsConfig;
+
+            const res = await fetch('/api/saas/sites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: currentSite.id,
+                    name: currentSite.name,
+                    theme: currentSite.theme,
+                    status: currentSite.status,
+                    userId: currentSite.userId,
+                    subdomain: currentSite.subdomain,
+                    jsonData: parsedJson
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                setSaasData(data.db);
+                saveLocalSaasState(data.db);
+            } else {
+                setSaasData(prev => {
+                    const next = {
+                        ...prev,
+                        sites: (prev.sites || []).map(s => s.id === currentSite.id ? { ...s, jsonData: parsedJson } : s)
+                    };
+                    saveLocalSaasState(next);
+                    return next;
+                });
+            }
+        } catch (err) {
+            setSaasData(prev => {
+                const next = {
+                    ...prev,
+                    sites: (prev.sites || []).map(s => {
+                        if (s.id !== siteId) return s;
+                        let parsed = {};
+                        try {
+                            parsed = typeof s.jsonData === 'string' ? JSON.parse(s.jsonData) : (s.jsonData || {});
+                        } catch (e) {}
+                        parsed.plugins = pluginsConfig;
+                        return { ...s, jsonData: parsed };
+                    })
+                };
+                saveLocalSaasState(next);
+                return next;
+            });
+        }
+    };
+
     // Add Custom Domain
     const handleAddDomain = async (siteName, domainName) => {
         try {
@@ -494,6 +553,8 @@ export default function App() {
                     onUploadMedia={handleUploadMedia}
                     onDeleteMedia={handleDeleteMedia}
                     onUpdateLeadStatus={handleUpdateLeadStatus}
+                    onUpdateSitePlugins={handleUpdateSitePlugins}
+                    notify={notify}
                     onLogout={async () => {
                         try {
                             await authClient.signOut();

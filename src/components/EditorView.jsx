@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Builder from '../../builder.js';
 import { compileWebsiteForProduction, normalizeHtmlMediaAssets } from '../utils/siteCompiler.js';
+import PluginsPanel from './PluginsPanel.jsx';
 
 export const AVAILABLE_THEMES = [
     { 
@@ -33,8 +34,29 @@ export default function EditorView({
     const [publishing, setPublishing] = useState(false);
     const [breakpoint, setBreakpoint] = useState('desktop'); // 'desktop', 'tablet', 'mobile'
     const [previewMode, setPreviewMode] = useState(false);
-    const [activeTab, setActiveTab] = useState('widgets'); // 'widgets', 'controls'
+    const [activeTab, setActiveTab] = useState('widgets'); // 'widgets', 'controls', 'plugins'
     const [sidebarOpen, setSidebarOpen] = useState(true); // Toggle sidebar for full page mode
+
+    // Plugins state
+    const [sitePlugins, setSitePlugins] = useState(() => {
+        try {
+            if (site?.jsonData) {
+                const parsed = typeof site.jsonData === 'string' ? JSON.parse(site.jsonData) : site.jsonData;
+                return parsed.plugins || {};
+            }
+        } catch (e) {}
+        return {};
+    });
+
+    const handleUpdatePlugins = (updated) => {
+        setSitePlugins(updated);
+        if (window.builder) {
+            try {
+                const currentData = window.builder.getData();
+                currentData.plugins = updated;
+            } catch (e) {}
+        }
+    };
     
     // Theme Management
     const [activeTheme, setActiveTheme] = useState(site?.theme || 'standard/Y1_a_1_Column_Layout');
@@ -264,6 +286,7 @@ export default function EditorView({
         setSaving(true);
         try {
             const data = window.builder.getData();
+            data.plugins = sitePlugins;
             const html = window.builder.getHtml();
             const payload = new URLSearchParams();
             payload.append('dir', themeDir);
@@ -316,6 +339,7 @@ export default function EditorView({
         try {
             const rawHtml = window.builder.getHtml();
             const rawData = window.builder.getData();
+            rawData.plugins = sitePlugins;
 
             // Run production compiler: strips builder artifacts, normalizes responsive layout, injects edge CRM runtime
             const compilation = compileWebsiteForProduction({
@@ -647,15 +671,26 @@ export default function EditorView({
                     <div className="flex border-b border-gray-200 bg-gray-50 p-1 gap-1">
                         <button 
                             onClick={() => setActiveTab('widgets')}
-                            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'widgets' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${activeTab === 'widgets' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
                         >
                             Widgets
                         </button>
                         <button 
                             onClick={() => setActiveTab('controls')}
-                            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'controls' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${activeTab === 'controls' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
                         >
                             Inspector
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('plugins')}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeTab === 'plugins' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
+                        >
+                            <span>Plugins</span>
+                            {Object.values(sitePlugins).filter(p => p?.enabled).length > 0 && (
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'plugins' ? 'bg-white text-black' : 'bg-gray-200 text-gray-800'}`}>
+                                    {Object.values(sitePlugins).filter(p => p?.enabled).length}
+                                </span>
+                            )}
                         </button>
                     </div>
 
@@ -672,6 +707,15 @@ export default function EditorView({
                         ref={settingsContainerRef} 
                         className={`flex-1 overflow-y-auto p-3 ${activeTab === 'controls' ? 'block' : 'hidden'}`}
                     ></div>
+
+                    {/* Plugins Panel */}
+                    <div className={`flex-1 overflow-hidden ${activeTab === 'plugins' ? 'flex flex-col' : 'hidden'}`}>
+                        <PluginsPanel 
+                            site={{ ...site, jsonData: { ...(site?.jsonData || {}), plugins: sitePlugins } }}
+                            onUpdatePlugins={handleUpdatePlugins}
+                            notify={notify}
+                        />
+                    </div>
                 </div>
 
                 {/* Canvas Viewport (With Responsive Wrapper & Full Page Mode) */}
