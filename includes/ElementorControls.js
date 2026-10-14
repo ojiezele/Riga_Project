@@ -435,6 +435,100 @@ export class FourSideControl extends ControlBase {
     }
 }
 
+export class BoxModelDiagramControl extends ControlBase {
+    constructor(id, label, values, onChange, options = {}) {
+        super(id, label, values || {}, onChange, options);
+        this.margin = values.margin || { top: '0px', right: '0px', bottom: '0px', left: '0px' };
+        this.padding = values.padding || { top: '16px', right: '16px', bottom: '16px', left: '16px' };
+        this.onMarginChange = options.onMarginChange;
+        this.onPaddingChange = options.onPaddingChange;
+        this.domNode = this.render();
+    }
+
+    parseNum(val) {
+        return parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
+    }
+
+    render() {
+        const wrapper = this.createWrapper();
+        wrapper.className = 'riga-box-model-control p-2.5 bg-gray-50/70 border border-gray-200 rounded-xl my-2 select-none';
+
+        const titleRow = document.createElement('div');
+        titleRow.className = 'flex items-center justify-between text-[11px] font-bold text-gray-800 mb-2.5';
+        titleRow.innerHTML = `
+            <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/><rect x="7" y="7" width="10" height="10" rx="1" stroke-width="2"/></svg>
+                <span>CSS Box Model</span>
+            </span>
+            <span class="text-[9px] font-mono text-gray-400">px</span>
+        `;
+        wrapper.appendChild(titleRow);
+
+        // Concentric Box Diagram
+        const diagram = document.createElement('div');
+        diagram.className = 'relative bg-[#eaedf0] border border-gray-300 rounded-xl p-3 text-center text-[10px] text-gray-600 font-mono shadow-2xs';
+
+        const parseSide = (obj, side) => this.parseNum(obj[side] || 0);
+
+        diagram.innerHTML = `
+            <div class="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1">Margin</div>
+            <div class="flex justify-center mb-1.5">
+                <input type="number" data-box="margin" data-side="top" value="${parseSide(this.margin, 'top')}" class="w-12 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+            </div>
+            <div class="flex items-center justify-between gap-1">
+                <input type="number" data-box="margin" data-side="left" value="${parseSide(this.margin, 'left')}" class="w-10 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+                
+                <!-- Inner Padding Box -->
+                <div class="flex-1 bg-[#d8dee4] border border-gray-400/80 rounded-lg p-2 text-center my-0.5">
+                    <div class="text-[9px] font-bold uppercase tracking-wider text-gray-600 mb-1">Padding</div>
+                    <div class="flex justify-center mb-1">
+                        <input type="number" data-box="padding" data-side="top" value="${parseSide(this.padding, 'top')}" class="w-12 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+                    </div>
+                    <div class="flex items-center justify-between gap-1">
+                        <input type="number" data-box="padding" data-side="left" value="${parseSide(this.padding, 'left')}" class="w-10 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+                        
+                        <!-- Center Element Core -->
+                        <div class="flex-1 bg-white border border-gray-400 rounded px-2 py-1.5 font-sans font-bold text-[10px] text-gray-900 shadow-2xs">
+                            Element
+                        </div>
+
+                        <input type="number" data-box="padding" data-side="right" value="${parseSide(this.padding, 'right')}" class="w-10 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+                    </div>
+                    <div class="flex justify-center mt-1">
+                        <input type="number" data-box="padding" data-side="bottom" value="${parseSide(this.padding, 'bottom')}" class="w-12 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+                    </div>
+                </div>
+
+                <input type="number" data-box="margin" data-side="right" value="${parseSide(this.margin, 'right')}" class="w-10 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+            </div>
+            <div class="flex justify-center mt-1.5">
+                <input type="number" data-box="margin" data-side="bottom" value="${parseSide(this.margin, 'bottom')}" class="w-12 h-5 text-center text-xs bg-white border border-gray-300 rounded focus:border-black focus:outline-none" />
+            </div>
+        `;
+
+        diagram.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const boxType = e.target.getAttribute('data-box');
+                const side = e.target.getAttribute('data-side');
+                const val = `${parseFloat(e.target.value) || 0}px`;
+                if (boxType === 'margin') {
+                    this.margin[side] = val;
+                    if (this.onMarginChange) this.onMarginChange(this.margin);
+                } else if (boxType === 'padding') {
+                    this.padding[side] = val;
+                    if (this.onPaddingChange) this.onPaddingChange(this.padding);
+                }
+                if (typeof this.onChange === 'function') {
+                    this.onChange({ margin: this.margin, padding: this.padding });
+                }
+            });
+        });
+
+        wrapper.appendChild(diagram);
+        return wrapper;
+    }
+}
+
 export class ToggleControl extends ControlBase {
     constructor(id, label, value, onChange, options = {}) {
         super(id, label, Boolean(value), onChange, options);

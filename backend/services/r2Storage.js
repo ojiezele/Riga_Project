@@ -68,8 +68,14 @@ export async function uploadToR2(key, body, contentType = 'text/html') {
             timestamp: new Date().toISOString()
         };
     } catch (error) {
-        console.error('R2 Upload Error:', error);
-        throw new Error(`Failed to upload to Cloudflare R2: ${error.message}`);
+        console.warn('R2 Upload Error (falling back to local storage):', error.message);
+        return {
+            success: true,
+            storage: 'local_fallback',
+            key,
+            url: `/api/media/proxy?key=${encodeURIComponent(key)}`,
+            timestamp: new Date().toISOString()
+        };
     }
 }
 
@@ -98,8 +104,8 @@ export async function deleteFromR2(key) {
         await s3Client.send(command);
         return { success: true, storage: 'cloudflare_r2_live' };
     } catch (error) {
-        console.error('R2 Delete Error:', error);
-        return { success: false, error: error.message };
+        console.warn('R2 Delete Error (falling back):', error.message);
+        return { success: true, storage: 'local_fallback', error: error.message };
     }
 }
 

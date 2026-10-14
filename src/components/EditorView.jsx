@@ -32,10 +32,20 @@ export default function EditorView({
 }) {
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
-    const [breakpoint, setBreakpoint] = useState('desktop'); // 'desktop', 'tablet', 'mobile'
+    const [breakpoint, setBreakpoint] = useState(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            return 'mobile';
+        }
+        return 'desktop';
+    }); // 'desktop', 'tablet', 'mobile'
     const [previewMode, setPreviewMode] = useState(false);
     const [activeTab, setActiveTab] = useState('widgets'); // 'widgets', 'controls', 'plugins'
-    const [sidebarOpen, setSidebarOpen] = useState(true); // Toggle sidebar for full page mode
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            return false;
+        }
+        return true;
+    }); // Toggle sidebar for full page mode
 
     // Plugins state
     const [sitePlugins, setSitePlugins] = useState(() => {
@@ -201,6 +211,11 @@ export default function EditorView({
                 aiHandler: '/ai-handler.php'
             });
 
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                mainContainerRef.current.style.maxWidth = '375px';
+                mainContainerRef.current.style.margin = '0 auto';
+            }
+
             try {
                 const themeUrl = `/themes/${themeDir}`;
                 let dataToLoad = site?.jsonData;
@@ -320,7 +335,7 @@ export default function EditorView({
                 } catch (e) {
                     console.error('Error syncing draft with saas db:', e);
                 }
-                notify('Draft saved to Cloudflare R2 & Neon DB!');
+                notify('Draft saved successfully!');
                 if (onSaveSuccess) onSaveSuccess({ ...site, name: siteTitle, status: 'draft', htmlContent: html, jsonData: data });
             } else {
                 notify('Error saving draft: ' + (resData.message || 'Unknown'), 'error');
@@ -480,7 +495,7 @@ export default function EditorView({
     return (
         <div className="flex flex-col h-screen bg-slate-50 text-slate-900 overflow-hidden" style={{ fontFamily: 'Inter, sans-serif' }}>
             {/* TOP NAVIGATION BAR */}
-            <header className="h-13 px-3 bg-white border-b border-gray-200 flex items-center justify-between z-30 flex-shrink-0 shadow-2xs">
+            <header className="h-auto sm:h-13 py-2 sm:py-0 px-2 sm:px-3 bg-white border-b border-gray-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 z-30 flex-shrink-0 shadow-2xs">
                 {/* Left: Back & Site Info */}
                 <div className="flex items-center gap-2">
                     <button 
@@ -665,10 +680,18 @@ export default function EditorView({
 
             {/* BUILDER WORKSPACE BODY */}
             <div className="flex-1 flex overflow-hidden relative">
+                {/* Mobile Backdrop Overlay */}
+                {sidebarOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-xs" 
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
+
                 {/* Left Controls Sidebar */}
-                <div className={`transition-all duration-300 ease-in-out bg-white border-r border-gray-200 flex flex-col z-20 flex-shrink-0 shadow-2xs ${sidebarOpen ? 'w-80' : 'w-0 overflow-hidden border-none'}`}>
+                <div className={`fixed lg:relative inset-y-0 left-0 z-40 transition-transform duration-300 ease-in-out bg-white border-r border-gray-200 flex flex-col shadow-2xl lg:shadow-2xs w-80 max-w-[85vw] lg:max-w-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden lg:border-none'}`}>
                     {/* Tab Navigation */}
-                    <div className="flex border-b border-gray-200 bg-gray-50 p-1 gap-1">
+                    <div className="flex border-b border-gray-200 bg-gray-50 p-1 gap-1 items-center">
                         <button 
                             onClick={() => setActiveTab('widgets')}
                             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${activeTab === 'widgets' ? 'bg-black text-white shadow-2xs' : 'text-gray-600 hover:text-black'}`}
@@ -691,6 +714,13 @@ export default function EditorView({
                                     {Object.values(sitePlugins).filter(p => p?.enabled).length}
                                 </span>
                             )}
+                        </button>
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="lg:hidden p-1.5 text-gray-500 hover:text-black rounded-lg hover:bg-gray-200 ml-1"
+                            title="Close sidebar"
+                        >
+                            <X className="w-4 h-4" />
                         </button>
                     </div>
 

@@ -7,7 +7,7 @@ import React from 'react';
 export default function RigaLogo({ 
     size = 'md', 
     showText = true, 
-    className = '',
+    className = '', 
     textClassName = '',
     onClick = null,
     light = false 
@@ -17,19 +17,19 @@ export default function RigaLogo({
         sm: {
             box: 'w-7 h-7 rounded-lg',
             svg: 'w-4 h-4',
-            text: 'text-base font-bold tracking-tight',
+            text: 'text-sm font-extrabold tracking-tight',
             gap: 'gap-2'
         },
         md: {
-            box: 'w-9 h-9 rounded-xl',
-            svg: 'w-5 h-5',
-            text: 'text-lg font-bold tracking-tight',
+            box: 'w-8 h-8 rounded-xl',
+            svg: 'w-4.5 h-4.5',
+            text: 'text-base font-extrabold tracking-tight',
             gap: 'gap-2.5'
         },
         lg: {
-            box: 'w-11 h-11 rounded-2xl',
-            svg: 'w-6 h-6',
-            text: 'text-2xl font-extrabold tracking-tight',
+            box: 'w-10 h-10 rounded-xl',
+            svg: 'w-5.5 h-5.5',
+            text: 'text-xl font-black tracking-tight',
             gap: 'gap-3'
         }
     };
@@ -41,37 +41,34 @@ export default function RigaLogo({
             onClick={onClick} 
             className={`flex items-center ${s.gap} select-none group ${onClick ? 'cursor-pointer' : ''} ${className}`}
         >
-            {/* Signature Riga Brand Icon Mark with subtle glow */}
+            {/* Signature riga Royal Blue Icon Mark */}
             <div 
-                className={`${s.box} ${light ? 'bg-white text-black shadow-md' : 'bg-black text-white shadow-md shadow-black/10'} flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}
-                style={{
-                    background: light 
-                        ? '#ffffff' 
-                        : 'linear-gradient(135deg, #18181b 0%, #000000 100%)',
-                    boxShadow: light ? '0 4px 12px rgba(255,255,255,0.2)' : '0 4px 16px rgba(0,0,0,0.18)'
-                }}
+                className={`${s.box} ${light ? 'bg-white text-blue-600' : 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20'} flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}
             >
                 <svg 
                     viewBox="0 0 24 24" 
                     fill="none" 
-                    className={`${s.svg} ${light ? 'text-black' : 'text-white'}`}
-                    xmlns="http://www.w3.org/2000/svg"
+                    className={`${s.svg} text-white`}
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                 >
-                    {/* Geometric Architectural "R" Brand Vector */}
-                    <path 
-                        d="M6 4.5H12.5C15.5376 4.5 18 6.96243 18 10C18 12.8256 15.867 15.1541 13.123 15.4648L18 20.5H13.6L9.4 15.5H8.5V20.5H6V4.5ZM8.5 7V13H12.5C14.1569 13 15.5 11.6569 15.5 10C15.5 8.34315 14.1569 7 12.5 7H8.5Z" 
-                        fill="currentColor"
-                    />
+                    {/* Visual Canvas Node Tree Mark */}
+                    <circle cx="18" cy="5" r="3" fill="currentColor" />
+                    <circle cx="6" cy="12" r="3" fill="currentColor" />
+                    <circle cx="18" cy="19" r="3" fill="currentColor" />
+                    <path d="M8.5 13.5l7 4M8.5 10.5l7-4" />
                 </svg>
             </div>
 
-            {/* Branded "Riga" Wordmark with Syne font */}
+            {/* Branded "riga" Wordmark */}
             {showText && (
                 <span 
-                    className={`${s.text} ${light ? 'text-white' : 'text-gray-950'} ${textClassName}`}
-                    style={{ fontFamily: "'Syne', sans-serif", letterSpacing: '-0.04em', fontWeight: 800 }}
+                    className={`${s.text} ${light ? 'text-white' : 'text-gray-900'} font-sans ${textClassName}`}
+                    style={{ letterSpacing: '-0.03em' }}
                 >
-                    Riga
+                    riga
                 </span>
             )}
         </div>

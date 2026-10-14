@@ -23,7 +23,8 @@ import {
     MediaPickerControl,
     IconPickerControl,
     SectionHeaderControl,
-    SubStyleSelectorControl
+    SubStyleSelectorControl,
+    BoxModelDiagramControl
 } from './ElementorControls.js';
 import { renderSvgIcon } from './SvgIcons.js';
 
@@ -60,6 +61,7 @@ export class UniversalWidgetElement extends BaseElement {
             case 'ProgressBar': return 'fill';
             case 'StarRating': return 'stars';
             case 'Button': return 'button';
+            case 'CookieConsent': return 'style';
             default: return 'container';
         }
     }
@@ -1298,6 +1300,90 @@ export class UniversalWidgetElement extends BaseElement {
                 `;
             }
 
+            case 'CookieConsent': {
+                const accent = p.accentColor || '#000000';
+                return `
+                    <div class="riga-cookie-dual-preview select-none space-y-5 p-4 sm:p-5 bg-gray-50/70 rounded-2xl border border-gray-200" data-sub-elem="cookieConsentWrapper">
+                        <div class="flex items-center justify-between pb-2.5 border-b border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-xs font-bold text-gray-900 tracking-tight">Compliance Shield · Dual Layout Preview</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-[10px] font-mono bg-white px-2.5 py-0.5 rounded-md border border-gray-200 text-gray-700">
+                                <span>${p.regulationPreset || 'EU GDPR & ePrivacy'}</span>
+                            </div>
+                        </div>
+
+                        <!-- 1. CENTERED MODAL PREVIEW -->
+                        <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden text-left" data-sub-elem="cookieModal">
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center text-xs font-bold">
+                                        ${svg('lock', { size: '13px', color: '#fff' })}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-extrabold text-xs text-gray-950">${p.title || 'Privacy Preferences · riga'}</h4>
+                                        <p class="text-[10px] text-gray-400">Configure cookie retention for this session</p>
+                                    </div>
+                                </div>
+                                <span class="text-gray-400 text-xs cursor-pointer">✕</span>
+                            </div>
+                            <div class="p-3.5 space-y-2">
+                                <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-200/80 flex items-start justify-between">
+                                    <div class="pr-2">
+                                        <div class="text-[11px] font-bold text-gray-900 flex items-center gap-1.5">
+                                            <span>Essential & Security</span>
+                                            <span class="text-[8px] bg-black text-white px-1.5 py-0.2 rounded font-bold uppercase">Required</span>
+                                        </div>
+                                        <p class="text-[10px] text-gray-500 mt-0.5">Session authentication, CSRF tokens, and visual editor rendering.</p>
+                                    </div>
+                                    <input type="checkbox" checked disabled class="accent-black mt-1" />
+                                </div>
+                                <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-200/80 flex items-start justify-between">
+                                    <div class="pr-2">
+                                        <div class="text-[11px] font-bold text-gray-900">Performance & Analytics</div>
+                                        <p class="text-[10px] text-gray-500 mt-0.5">Sub-50ms TTFB edge cache hit telemetry and builder response times.</p>
+                                    </div>
+                                    <input type="checkbox" ${p.analyticsEnabled !== false ? 'checked' : ''} class="accent-black mt-1" />
+                                </div>
+                                <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-200/80 flex items-start justify-between">
+                                    <div class="pr-2">
+                                        <div class="text-[11px] font-bold text-gray-900">Marketing & Conversions</div>
+                                        <p class="text-[10px] text-gray-500 mt-0.5">Attribution tags for marketing funnels and lead forms.</p>
+                                    </div>
+                                    <input type="checkbox" ${p.marketingEnabled ? 'checked' : ''} class="accent-black mt-1" />
+                                </div>
+                            </div>
+                            <div class="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
+                                <button type="button" class="px-2.5 py-1 text-xs font-semibold text-gray-600 hover:text-black">Reject Non-Essential</button>
+                                <button type="button" class="px-3.5 py-1 text-xs font-bold bg-black text-white rounded-lg shadow-2xs">Save Preferences</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. FLOATING BOTTOM DOCK PREVIEW -->
+                        <div class="bg-neutral-900 text-white p-3.5 sm:p-4 rounded-2xl shadow-xl border border-neutral-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 max-w-xl mx-auto text-left" data-sub-elem="cookieDock">
+                            <div class="flex items-start gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-neutral-800 flex items-center justify-center text-emerald-400 shrink-0 border border-neutral-700">
+                                    ${svg('shield', { size: '15px' })}
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-neutral-100 flex items-center gap-1.5">
+                                        <span>${p.title || 'We value your privacy on riga'}</span>
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                    </p>
+                                    <p class="text-[11px] text-neutral-400 leading-tight mt-0.5">${p.description || 'We use essential cookies to maintain secure sessions and performance metrics.'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
+                                <button type="button" class="px-2 py-1 text-[11px] font-medium text-neutral-300 hover:text-white bg-neutral-800 rounded-lg">Customize</button>
+                                <button type="button" class="px-2 py-1 text-[11px] font-semibold text-neutral-300 hover:text-white bg-neutral-800 rounded-lg">Reject</button>
+                                <button type="button" class="px-3 py-1 text-[11px] font-bold text-black bg-white rounded-lg shadow-2xs" style="background-color: ${accent === '#000000' ? '#ffffff' : accent}; color: ${accent === '#000000' ? '#000000' : '#ffffff'};">Accept All</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             default:
                 const renderer = this.widgetDef.customRender || this.widgetDef.render;
                 if (typeof renderer === 'function') {
@@ -1363,6 +1449,71 @@ export class UniversalWidgetElement extends BaseElement {
         const SubSelector = (typeof window !== 'undefined' && window.SubStyleSelectorControl) ? window.SubStyleSelectorControl : SubStyleSelectorControl;
 
         // Custom Breakdown for Composite Widgets
+        if (wid === 'CookieConsent') {
+            const sections = [
+                { id: 'style', label: 'Style' },
+                { id: 'behavior', label: 'Behavior' },
+                { id: 'regulation', label: 'Regulation' },
+                { id: 'code', label: 'Code' }
+            ];
+            controls.push(new SubSelector(this.activeSubSection || 'style', sections, (selectedSec) => {
+                this.activeSubSection = selectedSec;
+                if (window.builder) window.builder.renderElementControls(this);
+            }));
+
+            if (this.activeSubSection === 'style' || !this.activeSubSection) {
+                controls.push(new SectionHeaderControl('Visual Style & Box Model'));
+                // Box Model Diagram Control with concentric Margin & Padding
+                controls.push(new BoxModelDiagramControl('boxModel', 'CSS Box Model', {
+                    margin: this.styles.margin || { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+                    padding: this.styles.padding || { top: '16px', right: '16px', bottom: '16px', left: '16px' }
+                }, (val) => {
+                    this.setStyle('margin', val.margin);
+                    this.setStyle('padding', val.padding);
+                }, {
+                    onMarginChange: (m) => this.setStyle('margin', m),
+                    onPaddingChange: (p) => this.setStyle('padding', p)
+                }));
+
+                controls.push(new ColorControl('accentColor', 'Accent Color', this.props.accentColor || '#000000', (v) => this.setProp('accentColor', v)));
+                controls.push(new SliderControl('borderRadius', 'Corner Radius', parseFloat(this.styles.borderRadius) || 16, (v, num) => this.setStyle('borderRadius', `${num}px`), { min: 0, max: 32, unit: 'px' }));
+                controls.push(new SelectControl('breakpointPreview', 'Device Viewport', 'Desktop (All)', () => {}, {
+                    options: ['Desktop (All)', 'Tablet (768px)', 'Mobile (375px)']
+                }));
+            } else if (this.activeSubSection === 'behavior') {
+                controls.push(new SectionHeaderControl('Behavior & Presentation'));
+                controls.push(new SelectControl('layoutMode', 'Display Format', this.props.layoutMode || 'dual', (v) => this.setProp('layoutMode', v), {
+                    options: ['dual', 'floatingDock', 'centerModal']
+                }));
+                controls.push(new SelectControl('position', 'Dock Position', 'Bottom Full', (v) => this.setProp('position', v), {
+                    options: ['Bottom Full', 'Bottom Right', 'Bottom Left', 'Center Modal']
+                }));
+                controls.push(new SliderControl('autoDelay', 'Auto-Show Delay (ms)', 1200, (v, num) => this.setProp('autoDelay', num), { min: 0, max: 5000, step: 200, unit: 'ms' }));
+                controls.push(new SliderControl('retentionDays', 'Consent Retention', this.props.retentionDays || 365, (v, num) => this.setProp('retentionDays', num), { min: 30, max: 730, step: 30, unit: 'days' }));
+            } else if (this.activeSubSection === 'regulation') {
+                controls.push(new SectionHeaderControl('Regulatory Framework'));
+                controls.push(new SelectControl('regulationPreset', 'Regulatory Preset', this.props.regulationPreset || 'EU GDPR & ePrivacy', (v) => this.setProp('regulationPreset', v), {
+                    options: ['EU GDPR & ePrivacy', 'California CCPA/CPRA', 'Global Strict (Opt-in)', 'Lightweight Notice']
+                }));
+                controls.push(new ToggleControl('essentialEnabled', 'Essential Cookies (Always Active)', true, () => {}));
+                controls.push(new ToggleControl('analyticsEnabled', 'Analytics & Telemetry Category', this.props.analyticsEnabled !== false, (v) => this.setProp('analyticsEnabled', v)));
+                controls.push(new ToggleControl('marketingEnabled', 'Marketing & Ads Category', Boolean(this.props.marketingEnabled), (v) => this.setProp('marketingEnabled', v)));
+                controls.push(new TextControl('policyUrl', 'Privacy Policy URL', '/privacy', (v) => this.setProp('policyUrl', v)));
+            } else if (this.activeSubSection === 'code') {
+                controls.push(new SectionHeaderControl('Integration & Embed Snippet'));
+                const embedCode = `<!-- Riga Compliance Shield Banner -->\n<div id="riga-consent-banner" data-framework="${this.props.regulationPreset || 'GDPR'}"></div>\n<script src="https://cdn.riga.site/v2/shield.js" async></script>`;
+                controls.push(new TextareaControl('embedSnippet', 'HTML Embed Code', embedCode, () => {}));
+                const exportJson = JSON.stringify({
+                    widget: 'CookieConsent',
+                    preset: this.props.regulationPreset,
+                    retentionDays: this.props.retentionDays || 365,
+                    categories: { essential: true, analytics: this.props.analyticsEnabled !== false, marketing: Boolean(this.props.marketingEnabled) }
+                }, null, 2);
+                controls.push(new TextareaControl('settingsJson', 'JSON Configuration', exportJson, () => {}));
+            }
+            return controls;
+        }
+
         if (wid === 'Form') {
             const sections = [
                 { id: 'labels', label: 'Labels' },

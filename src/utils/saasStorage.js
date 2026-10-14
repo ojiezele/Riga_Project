@@ -7,22 +7,82 @@ export const DEFAULT_SAAS_STATE = {
   user: null,
   sites: [
     {
-      id: "site_1",
-      name: "My Portfolio",
-      subdomain: "portfolio.riga.site",
+      id: "site_luminary",
+      name: "Luminary Agency",
+      subdomain: "luminary.design",
+      category: "Portfolio",
+      tag: "Agency",
       theme: "standard/Y1_a_1_Column_Layout",
       status: "published",
-      visitors: "1,420",
-      updated: "2026-10-10"
+      statusBadge: "Published (SSL Active)",
+      visitors: "42.5k",
+      updated: "Edited 10 mins ago by Sarah",
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
     },
     {
-      id: "site_2",
-      name: "Startup Landing",
-      subdomain: "startup.riga.site",
-      theme: "standard/Y0_Blank",
+      id: "site_nordic",
+      name: "Nordic Roast Co.",
+      subdomain: "nordicroast.shop",
+      category: "E-Commerce",
+      tag: "E-Commerce",
+      theme: "standard/Y5_e_Commerce_Layout",
+      status: "published",
+      statusBadge: "Published (Custom Domain)",
+      visitors: "28.1k",
+      updated: "Last edited yesterday",
+      image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: "site_fintech",
+      name: "Fintech Pulse SaaS",
+      subdomain: "pulse-preview.riga.app",
+      category: "SaaS & Marketing",
+      tag: "SaaS",
+      theme: "standard/Y1_a_1_Column_Layout",
+      status: "staging",
+      statusBadge: "Staging (v2.1)",
+      visitors: "18.4k",
+      updated: "Edited 3 days ago",
+      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: "site_elena",
+      name: "Elena Rostova Studio",
+      subdomain: "elenarostova.art",
+      category: "Portfolio",
+      tag: "Portfolio",
+      theme: "standard/Y3_c_3_Column_Layout",
+      status: "published",
+      statusBadge: "Published",
+      visitors: "9.2k",
+      updated: "Last edited May 12",
+      image: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: "site_apex",
+      name: "Apex Ventures Pitch",
+      subdomain: "apex-deck.draft.internal",
+      category: "SaaS & Marketing",
+      tag: "Internal",
+      theme: "standard/Y2_b_2_Column_Layout",
       status: "draft",
-      visitors: "320",
-      updated: "2026-10-10"
+      statusBadge: "Draft (Password Protected)",
+      visitors: "1.8k",
+      updated: "Last edited May 10",
+      image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: "site_devflow",
+      name: "DevFlow Documentation",
+      subdomain: "docs.devflow.io",
+      category: "SaaS & Marketing",
+      tag: "Knowledge",
+      theme: "standard/Y4_d_Newsletter_Layout",
+      status: "published",
+      statusBadge: "Published",
+      visitors: "42.6k",
+      updated: "Published 2 weeks ago",
+      image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80"
     }
   ],
   team: [

@@ -275,6 +275,12 @@ class UIManager {
     // Direct insertion helper (usable by click or programmatic drops)
     insertWidget(draggableItem) {
         if (!draggableItem) return;
+        const now = Date.now();
+        if (this._lastInsertedTime && (now - this._lastInsertedTime < 450)) {
+            return;
+        }
+        this._lastInsertedTime = now;
+
         const renderedElements = draggableItem.renderElements();
         if (!renderedElements || renderedElements.length === 0) return;
 

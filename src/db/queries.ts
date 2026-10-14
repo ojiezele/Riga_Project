@@ -356,7 +356,7 @@ export async function registerUser({ name, email, password }: { name?: string; e
       email: email,
       name: userName,
       role: 'Owner',
-      plan: 'WordPress Pro SaaS',
+      plan: 'Riga SaaS Enterprise',
     });
   } catch (e) {}
 
@@ -385,7 +385,7 @@ export async function registerUser({ name, email, password }: { name?: string; e
       id: 'sub_' + Date.now(),
       userId: userId,
       organizationId: orgId,
-      plan: 'WordPress Pro SaaS',
+      plan: 'Riga SaaS Enterprise',
       status: 'active',
       price: '$49',
       seats: 5,

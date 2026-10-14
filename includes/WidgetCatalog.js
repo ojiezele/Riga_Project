@@ -139,6 +139,9 @@ export function getWidgetSvg(id) {
         case 'Checkbox':
         case 'Radio':
             return `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>`;
+        case 'CookieConsent':
+        case 'CookieConsentShield':
+            return `<svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`;
 
         // Marketing
         case 'PriceTable':
@@ -707,6 +710,22 @@ export const MASTER_CATEGORIES = {
             editableFields: {
                 name: { type: 'text', default: 'David Miller', label: 'Reviewer' },
                 rating: { type: 'number', min: 1, max: 5, default: 5, label: 'Star Rating' }
+            }
+        },
+        {
+            id: 'CookieConsent',
+            label: 'Cookie Consent Shield',
+            description: 'Dual preview modal & floating dock compliance banner with GDPR, CCPA & granular preferences.',
+            editableFields: {
+                layoutMode: { type: 'select', options: ['dual', 'floatingDock', 'centerModal'], default: 'dual', label: 'Display Preview Mode' },
+                title: { type: 'text', default: 'We value your privacy on riga', label: 'Banner Title' },
+                description: { type: 'textarea', default: 'We use essential cookies to maintain secure sessions and performance metrics. Zero cross-site tracking.', label: 'Description' },
+                regulationPreset: { type: 'select', options: ['EU GDPR & ePrivacy', 'California CCPA/CPRA', 'Global Strict (Opt-in)', 'Lightweight Notice'], default: 'EU GDPR & ePrivacy', label: 'Regulation Preset' },
+                essentialEnabled: { type: 'boolean', default: true, label: 'Essential Cookies (Required)' },
+                analyticsEnabled: { type: 'boolean', default: true, label: 'Analytics & Performance' },
+                marketingEnabled: { type: 'boolean', default: false, label: 'Marketing & Ads' },
+                accentColor: { type: 'color', default: '#000000', label: 'Accent Color' },
+                retentionDays: { type: 'number', min: 30, max: 730, default: 365, label: 'Consent Retention (Days)' }
             }
         }
     ],

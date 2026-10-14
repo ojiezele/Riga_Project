@@ -4,8 +4,13 @@ import AuthPage from './components/AuthPage.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import EditorView from './components/EditorView.jsx';
 import PublishedSiteRenderer from './components/PublishedSiteRenderer.jsx';
+import SystemStatusPage from './components/SystemStatusPage.jsx';
+import TrustCenterPage from './components/TrustCenterPage.jsx';
+import LegalDocsPage from './components/LegalDocsPage.jsx';
+import TemplateSelectorGallery from './components/TemplateSelectorGallery.jsx';
 import { getLocalSaasState, saveLocalSaasState } from './utils/saasStorage.js';
 import { authClient } from './lib/auth-client.ts';
+import { SkeletonFullPage } from './components/SkeletonLoader.jsx';
 
 export default function App() {
     // Current active view: 'landing', 'auth', 'dashboard', or 'editor'
@@ -44,6 +49,8 @@ export default function App() {
         }, 3500);
     };
 
+    const [isLoading, setIsLoading] = useState(true);
+
     // Load SaaS database from backend with user isolation
     const loadSaasState = async (forcedUserId = null) => {
         try {
@@ -75,21 +82,38 @@ export default function App() {
     };
 
     useEffect(() => {
-        const initAuth = async () => {
+        const initAll = async () => {
+            setIsLoading(true);
             try {
-                const sessionRes = await authClient.getSession();
+                // Use Promise.all to fetch session and state concurrently where applicable
+                const [sessionRes, stateRes] = await Promise.all([
+                    authClient.getSession().catch(() => null),
+                    fetch(`/api/saas/state`).then(r => r.json()).catch(() => null)
+                ]);
+
                 if (sessionRes?.data?.user) {
                     const baUser = sessionRes.data.user;
-                    setUser(prev => prev ? ({ ...prev, ...baUser }) : baUser);
-                    loadSaasState(baUser.id);
-                    return;
+                    setUser(baUser);
+                    if (baUser.id) {
+                        await loadSaasState(baUser.id);
+                    }
+                }
+
+                if (stateRes && stateRes.sites) {
+                    setSaasData(stateRes);
+                    saveLocalSaasState(stateRes);
                 }
             } catch (e) {
-                console.warn('Better Auth session check notice:', e);
+                console.warn('Initialization notice:', e);
+                const localState = getLocalSaasState();
+                if (localState && localState.sites) {
+                    setSaasData(localState);
+                }
+            } finally {
+                setIsLoading(false);
             }
-            loadSaasState();
         };
-        initAuth();
+        initAll();
     }, []);
 
     // Create New Site from Dashboard
@@ -508,6 +532,10 @@ export default function App() {
         );
     }
 
+    if (isLoading) {
+        return <SkeletonFullPage />;
+    }
+
     return (
         <div className="w-full h-full min-h-screen bg-slate-50 text-slate-900">
             {/* 1. PUBLIC MARKETING LANDING PAGE */}
@@ -521,10 +549,15 @@ export default function App() {
                         }
                     }}
                     onGoToAuth={() => setCurrentView('auth')}
+                    onGoToStatus={() => setCurrentView('status')}
+                    onGoToTrust={() => setCurrentView('trust')}
+                    onGoToPrivacy={() => setCurrentView('privacy')}
+                    onGoToTerms={() => setCurrentView('terms')}
+                    onGoToTemplates={() => setCurrentView('templates')}
                 />
             )}
 
-            {/* 2. AUTHENTICATION PAGES (LOGIN / SIGNUP) */}
+            {/* 2. AUTHENTICATION PAGES (LOGIN / SIGNUP / FORGOT) */}
             {(currentView === 'auth' || ((currentView === 'dashboard' || currentView === 'editor') && !user)) && (
                 <AuthPage 
                     onLoginSuccess={(authedUser) => {
@@ -537,7 +570,47 @@ export default function App() {
                 />
             )}
 
-            {/* 3. SAAS DASHBOARD (MAIN ENTRY POINT WITH LEFT SIDEBAR) */}
+            {/* 3. SYSTEM STATUS & INCIDENT HISTORY */}
+            {currentView === 'status' && (
+                <SystemStatusPage 
+                    onBackToApp={() => setCurrentView(user ? 'dashboard' : 'landing')} 
+                />
+            )}
+
+            {/* 4. SECURITY & COMPLIANCE TRUST CENTER */}
+            {currentView === 'trust' && (
+                <TrustCenterPage 
+                    onBackToApp={() => setCurrentView(user ? 'dashboard' : 'landing')} 
+                />
+            )}
+
+            {/* 5. PRIVACY POLICY */}
+            {currentView === 'privacy' && (
+                <LegalDocsPage 
+                    initialDoc="privacy"
+                    onBackToApp={() => setCurrentView(user ? 'dashboard' : 'landing')} 
+                />
+            )}
+
+            {/* 6. TERMS OF SERVICE */}
+            {currentView === 'terms' && (
+                <LegalDocsPage 
+                    initialDoc="terms"
+                    onBackToApp={() => setCurrentView(user ? 'dashboard' : 'landing')} 
+                />
+            )}
+
+            {/* 7. TEMPLATE SELECTOR GALLERY */}
+            {currentView === 'templates' && (
+                <TemplateSelectorGallery 
+                    onSelectTemplate={(tmpl) => {
+                        handleCreateNewSite(tmpl.name, tmpl.id);
+                    }}
+                    onBack={() => setCurrentView(user ? 'dashboard' : 'landing')} 
+                />
+            )}
+
+            {/* 8. SAAS DASHBOARD (MAIN ENTRY POINT WITH LEFT SIDEBAR) */}
             {currentView === 'dashboard' && (
                 <Dashboard 
                     user={user}
@@ -564,10 +637,14 @@ export default function App() {
                         notify('Signed out successfully');
                     }}
                     onGoToLanding={() => setCurrentView('landing')}
+                    onGoToStatus={() => setCurrentView('status')}
+                    onGoToTrust={() => setCurrentView('trust')}
+                    onGoToPrivacy={() => setCurrentView('privacy')}
+                    onGoToTerms={() => setCurrentView('terms')}
                 />
             )}
 
-            {/* 4. VISUAL WEBSITE BUILDER (ONLY SHOWS WHEN CREATING OR EDITING SITE) */}
+            {/* 9. VISUAL WEBSITE BUILDER (ONLY SHOWS WHEN CREATING OR EDITING SITE) */}
             {currentView === 'editor' && (
                 <EditorView 
                     site={activeSite}

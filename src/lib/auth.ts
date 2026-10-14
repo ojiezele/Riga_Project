@@ -54,7 +54,7 @@ export const auth = betterAuth({
       plan: {
         type: 'string',
         required: false,
-        defaultValue: 'WordPress Pro SaaS',
+        defaultValue: 'Riga SaaS Enterprise',
       },
     },
   },
@@ -90,7 +90,7 @@ export const auth = betterAuth({
               id: 'sub_' + Date.now(),
               userId: user.id,
               organizationId: orgId,
-              plan: 'WordPress Pro SaaS',
+              plan: 'Riga SaaS Enterprise',
               status: 'active',
               price: '$49',
               seats: 5,

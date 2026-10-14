@@ -6,11 +6,13 @@ import {
     Layers, HardDrive, RefreshCw, AlertCircle, ArrowUpRight, Copy, Check, Eye,
     CopyPlus, Smartphone, Tablet, Monitor, X, Server, ArrowRight, Image as ImageIcon,
     Inbox, History, UploadCloud, FileSpreadsheet, CheckCircle, Mail, MessageSquare, Menu,
-    Puzzle, ChevronRight
+    Puzzle, ChevronRight, MoreVertical, Link2, ShoppingBag, Sliders, Clock, FolderKanban, ShieldCheck
 } from 'lucide-react';
 import PluginConfigPage from './PluginConfigPage.jsx';
 import CustomPluginCreatePage from './CustomPluginCreatePage.jsx';
 import { pluginManager } from '../utils/pluginEngine.js';
+import { SkeletonCard, SkeletonTable, SkeletonStats } from './SkeletonLoader.jsx';
+import TemplateSelectorGallery from './TemplateSelectorGallery.jsx';
 
 export default function Dashboard({ 
     user, 
@@ -28,7 +30,11 @@ export default function Dashboard({
     onUpdateSitePlugins,
     notify,
     onLogout, 
-    onGoToLanding 
+    onGoToLanding,
+    onGoToStatus,
+    onGoToTrust,
+    onGoToPrivacy,
+    onGoToTerms
 }) {
     const [currentTab, setCurrentTab] = useState('sites'); // 'sites', 'analytics', 'media', 'leads', 'team', 'domains', 'templates', 'activity', 'plugins', 'settings'
     const [searchQuery, setSearchQuery] = useState('');
@@ -112,21 +118,34 @@ export default function Dashboard({
     const [workspacesList, setWorkspacesList] = useState([]);
     const [previewSite, setPreviewSite] = useState(null);
     const [previewDevice, setPreviewDevice] = useState('desktop');
+    const [isDashboardLoading, setIsDashboardLoading] = useState(true);
 
-    // Fetch Better Auth Workspaces
+    // Fetch Better Auth Workspaces and Team data in parallel using Promise.all
     React.useEffect(() => {
-        const fetchOrgs = async () => {
+        const fetchDashboardData = async () => {
+            setIsDashboardLoading(true);
             try {
                 const uid = user?.id || user?.uid || '';
-                if (!uid) return;
-                const res = await fetch(`/api/saas/organizations?userId=${encodeURIComponent(uid)}`);
-                const data = await res.json();
-                if (data.status === 'success' && data.organizations) {
-                    setWorkspacesList(data.organizations);
+                if (!uid) {
+                    setIsDashboardLoading(false);
+                    return;
                 }
-            } catch (e) {}
+
+                const [orgsRes, teamRes] = await Promise.all([
+                    fetch(`/api/saas/organizations?userId=${encodeURIComponent(uid)}`).then(r => r.json()).catch(() => null),
+                    fetch(`/api/saas/team?userId=${encodeURIComponent(uid)}`).then(r => r.json()).catch(() => null)
+                ]);
+
+                if (orgsRes && orgsRes.status === 'success' && orgsRes.organizations) {
+                    setWorkspacesList(orgsRes.organizations);
+                }
+            } catch (e) {
+                console.warn('Dashboard data fetch warning:', e);
+            } finally {
+                setIsDashboardLoading(false);
+            }
         };
-        fetchOrgs();
+        fetchDashboardData();
     }, [user]);
 
     // Handle Create Workspace
@@ -142,7 +161,7 @@ export default function Dashboard({
             });
             const data = await res.json();
             if (data.status === 'success') {
-                alert(`Workspace "${data.organization.name}" created with Better Auth!`);
+                alert(`Workspace "${data.organization.name}" created successfully!`);
                 setWorkspacesList(prev => [...prev, data.organization]);
                 setNewWorkspaceName('');
                 setShowWorkspaceModal(false);
@@ -181,11 +200,26 @@ export default function Dashboard({
 
     const [copiedDomain, setCopiedDomain] = useState(null);
     const [copiedMedia, setCopiedMedia] = useState(null);
+    const [siteCategoryFilter, setSiteCategoryFilter] = useState('All Sites (6)');
+    const [siteSortOption, setSiteSortOption] = useState('Last Modified');
 
-    const filteredSites = (saasData.sites || []).filter(s => 
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        s.subdomain.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredSites = (saasData.sites || []).filter(s => {
+        let matchCat = true;
+        if (siteCategoryFilter === 'E-Commerce (2)' || siteCategoryFilter === 'E-Commerce') {
+            matchCat = s.category === 'E-Commerce' || s.tag === 'E-Commerce';
+        } else if (siteCategoryFilter === 'Portfolio (2)' || siteCategoryFilter === 'Portfolio') {
+            matchCat = s.category === 'Portfolio' || s.tag === 'Portfolio' || s.tag === 'Agency';
+        } else if (siteCategoryFilter === 'SaaS & Marketing (2)' || siteCategoryFilter === 'SaaS & Marketing') {
+            matchCat = s.category === 'SaaS & Marketing' || s.tag === 'SaaS' || s.tag === 'Internal' || s.tag === 'Knowledge';
+        }
+
+        const matchSearch = !searchQuery.trim() || 
+            s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            s.subdomain.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.tag && s.tag.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return matchCat && matchSearch;
+    });
 
     const filteredMedia = (saasData.media || []).filter(m => {
         const matchesCategory = mediaCategoryFilter === 'All' || m.category === mediaCategoryFilter;
@@ -407,7 +441,7 @@ export default function Dashboard({
                     <div className="flex items-center justify-between mb-2 px-1">
                         <div className="flex items-center gap-2">
                             <RigaLogo size="sm" />
-                            <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">BETTER AUTH</span>
+                            <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold tracking-wider">ENTERPRISE</span>
                         </div>
 
                         <button 
@@ -423,7 +457,7 @@ export default function Dashboard({
                     <button 
                         onClick={() => setShowWorkspaceModal(true)}
                         className="w-full text-left px-2.5 py-2 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl border border-gray-200/80 flex items-center justify-between group cursor-pointer"
-                        title="Click to manage or switch Better Auth workspaces"
+                        title="Click to manage or switch workspaces"
                     >
                         <div className="min-w-0 flex-1">
                             <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
@@ -667,124 +701,329 @@ export default function Dashboard({
 
                 {/* Dashboard Scrollable Body */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                    {/* TAB: SITES */}
-                    {currentTab === 'sites' && (
-                        <div>
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                                <div>
-                                    <h1 className="text-2xl font-extrabold text-gray-900">Hosted Websites</h1>
-                                    <p className="text-xs text-gray-500 mt-1">Manage, preview, and visually edit your multi-tenant website deployments.</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">Deployments: <strong className="text-gray-900">{filteredSites.length}</strong></span>
-                                </div>
-                            </div>
+                    {isDashboardLoading ? (
+                        <div className="space-y-6">
+                            <SkeletonStats />
+                            <SkeletonTable />
+                        </div>
+                    ) : (
+                        <>
+                            {/* TAB: SITES (Exact Match to screen_sites_dashboard.png) */}
+                            {currentTab === 'sites' && (
+                                <div className="space-y-6">
+                                    {/* 1. Welcome Header Banner */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
+                                                    Welcome back, Alex
+                                                </h1>
+                                                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563EB] border border-blue-200 text-[10px] font-bold tracking-wider uppercase">
+                                                    PRO WORKSPACE
+                                                </span>
+                                            </div>
+                                            <p className="text-xs sm:text-sm text-slate-500">
+                                                Manage your published websites, staging environments, global CDN traffic, and form leads.
+                                            </p>
+                                        </div>
 
-                            {/* Sites Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredSites.map(site => (
-                                    <div key={site.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between shadow-xs">
-                                        <div className="p-5 border-b border-gray-100">
-                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={() => setShowNewSiteModal(true)}
+                                                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5"
+                                            >
+                                                <UploadCloud className="w-3.5 h-3.5" />
+                                                <span>Import Site</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => setShowNewSiteModal(true)}
+                                                className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" />
+                                                <span>Create New Site</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Four Top Metric Cards */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-2">
+                                            <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+                                                <span>Total Workspaces</span>
+                                                <FolderKanban className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-2xl sm:text-3xl font-black text-slate-950">6</span>
+                                                <span className="text-xs text-slate-400 font-medium">/ 10 tier cap</span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500 flex items-center gap-2 pt-1">
+                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 3 Live</span>
+                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> 2 Staging</span>
+                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> 1 Draft</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-2">
+                                            <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+                                                <span>Monthly Visitors</span>
+                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                                    ↗ +18.4%
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-2xl sm:text-3xl font-black text-slate-950">142.8k</span>
+                                                {/* Mini Sparkline */}
+                                                <svg className="w-20 h-7 text-blue-600 overflow-visible" viewBox="0 0 80 28" fill="none">
+                                                    <path d="M0 24 Q 20 18, 40 12 T 80 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-[11px] text-slate-400">
+                                                vs. 120.6k last month
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-2">
+                                            <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+                                                <span>Global CDN Bandwidth</span>
+                                                <Globe className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-2xl sm:text-3xl font-black text-slate-950">48.2</span>
+                                                <span className="text-sm font-bold text-slate-600">GB</span>
+                                                <span className="text-xs text-slate-400 font-medium ml-auto">250 GB limit</span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500">
+                                                Edge cached 98.4% globally
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-2">
+                                            <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+                                                <span>Form Submissions</span>
+                                                <Inbox className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-2xl sm:text-3xl font-black text-slate-950">1,849</span>
+                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full ml-auto">
+                                                    Active CRM Sync
+                                                </span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500">
+                                                24 new submissions today
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. SSL Certificate & Edge Health Normal Alert Banner */}
+                                    <div className="bg-blue-50/70 rounded-2xl p-4 border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                                                <ShieldCheck className="w-4 h-4 text-[#2563EB]" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 font-bold text-slate-900">
+                                                    <span>SSL Certificate & Edge Health Normal</span>
+                                                    <span className="text-[10px] font-medium bg-white text-blue-700 border border-blue-200 px-2 py-0.2 rounded-full">
+                                                        Auto-renews in 240 days
+                                                    </span>
+                                                </div>
+                                                <div className="text-slate-500 mt-0.5">
+                                                    Production Build #408 succeeded in 1.2s across 34 edge points.
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <a href="#build-logs" className="text-blue-600 font-bold hover:underline flex items-center gap-1 shrink-0">
+                                            <span>View Build Logs</span>
+                                            <ArrowRight className="w-3.5 h-3.5" />
+                                        </a>
+                                    </div>
+
+                                    {/* 4. Filter & Search Toolbar */}
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                                        <div className="relative flex-1 max-w-md">
+                                            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                                            <input 
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Filter sites by name, domain, tag..."
+                                                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 shadow-2xs focus:outline-none focus:border-[#2563EB]"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {/* Category Pills */}
+                                            <div className="flex items-center gap-1.5 text-xs font-semibold">
+                                                {['All Sites (6)', 'E-Commerce (2)', 'Portfolio (2)', 'SaaS & Marketing (2)'].map(cat => (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setSiteCategoryFilter(cat)}
+                                                        className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
+                                                            siteCategoryFilter === cat 
+                                                                ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20 font-bold' 
+                                                                : 'bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                                        }`}
+                                                    >
+                                                        {cat}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Sort Option */}
+                                            <div className="relative">
+                                                <select 
+                                                    value={siteSortOption}
+                                                    onChange={(e) => setSiteSortOption(e.target.value)}
+                                                    className="appearance-none bg-white border border-slate-200 text-xs font-semibold text-slate-700 py-1.5 pl-3 pr-8 rounded-xl shadow-2xs focus:outline-none cursor-pointer"
+                                                >
+                                                    <option>Last Modified</option>
+                                                    <option>Most Visitors</option>
+                                                    <option>Alphabetical</option>
+                                                </select>
+                                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. Sites Grid (Exact 6 Cards) */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {filteredSites.map(site => (
+                                            <div 
+                                                key={site.id} 
+                                                className="group bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+                                            >
+                                                {/* Card Header Media */}
                                                 <div>
-                                                    <h3 className="font-bold text-base text-gray-900 truncate max-w-[200px]">{site.name}</h3>
-                                                    <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                                                        <a 
-                                                            href={typeof window !== 'undefined' ? `${window.location.origin}/sites/${site.id}` : `https://${site.subdomain}`} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                            className="text-gray-600 hover:text-black hover:underline truncate max-w-[180px] font-mono text-[11px]"
-                                                            title={`Visit live site: ${typeof window !== 'undefined' ? window.location.origin : ''}/sites/${site.id}`}
-                                                        >
-                                                            {site.subdomain}
-                                                        </a>
+                                                    <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden border-b border-slate-100">
+                                                        <img 
+                                                            src={site.image || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"} 
+                                                            alt={site.name}
+                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                        />
+                                                        {/* Status Pill on top left */}
+                                                        <div className="absolute top-2.5 left-2.5">
+                                                            <span className="px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold shadow-2xs flex items-center gap-1.5">
+                                                                <span className={`w-2 h-2 rounded-full ${
+                                                                    site.status === 'published' ? 'bg-emerald-500' : site.status === 'staging' ? 'bg-blue-500' : 'bg-slate-700'
+                                                                }`}></span>
+                                                                <span>{site.statusBadge || (site.status === 'published' ? 'Published' : 'Draft')}</span>
+                                                            </span>
+                                                        </div>
+
+                                                        {/* 3-dots actions */}
                                                         <button 
-                                                            onClick={() => copyToClipboard(typeof window !== 'undefined' ? `${window.location.origin}/sites/${site.id}` : `https://${site.subdomain}`, site.id)}
-                                                            className="text-gray-400 hover:text-black"
-                                                            title="Copy live site URL"
+                                                            onClick={(e) => { e.stopPropagation(); setShowNewSiteModal(true); }}
+                                                            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-xs text-slate-600 hover:text-black hover:bg-white flex items-center justify-center shadow-2xs transition-colors"
                                                         >
-                                                            {copiedDomain === site.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                                            <MoreVertical className="w-3.5 h-3.5" />
                                                         </button>
                                                     </div>
-                                                </div>
-                                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${site.status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                    {site.status === 'published' ? '● Live' : '● Draft'}
-                                                </span>
-                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100 text-[11px]">
-                                                <div>
-                                                    <span className="text-gray-400">Visitors:</span>
-                                                    <div className="font-semibold text-gray-800">{site.visitors || '1,420'}</div>
+                                                    {/* Card Body */}
+                                                    <div className="p-4 space-y-2">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <h3 className="font-extrabold text-base text-slate-900 group-hover:text-blue-600 transition-colors truncate max-w-[200px]">
+                                                                    {site.name}
+                                                                </h3>
+                                                                <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                                                                    <Link2 className="w-3.5 h-3.5 text-slate-400" />
+                                                                    <a 
+                                                                        href={typeof window !== 'undefined' ? `${window.location.origin}/sites/${site.id}` : `https://${site.subdomain}`} 
+                                                                        target="_blank" 
+                                                                        rel="noopener noreferrer"
+                                                                        className="hover:text-blue-600 font-mono text-[11px]"
+                                                                    >
+                                                                        {site.subdomain}
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
+                                                                {site.tag || site.category || 'Site'}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="text-[11px] text-slate-400 pt-1 flex items-center gap-1">
+                                                            <Clock className="w-3 h-3 text-slate-400" />
+                                                            <span>{site.updated || 'Edited recently'}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <span className="text-gray-400">Updated:</span>
-                                                    <div className="font-semibold text-gray-800">{site.updated || 'Just now'}</div>
+
+                                                {/* Card Footer Actions */}
+                                                <div className="p-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
+                                                    <button 
+                                                        onClick={() => onOpenEditorForSite(site)}
+                                                        className="flex-1 py-2 px-3 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                                                    >
+                                                        <Layout className="w-3.5 h-3.5" />
+                                                        <span>Builder</span>
+                                                    </button>
+
+                                                    {site.tag === 'E-Commerce' ? (
+                                                        <button 
+                                                            onClick={() => openPreview(site)}
+                                                            className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center gap-1"
+                                                        >
+                                                            <ShoppingBag className="w-3.5 h-3.5" />
+                                                            <span>Orders</span>
+                                                        </button>
+                                                    ) : site.tag === 'SaaS' ? (
+                                                        <button 
+                                                            onClick={() => openPreview(site)}
+                                                            className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center gap-1"
+                                                        >
+                                                            <UploadCloud className="w-3.5 h-3.5" />
+                                                            <span>Deploy</span>
+                                                        </button>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => openPreview(site)}
+                                                            className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-black transition-colors"
+                                                            title="Preview"
+                                                        >
+                                                            <BarChart3 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+
+                                                    <button 
+                                                        onClick={() => { setSelectedSiteId(site.id); setCurrentTab('settings'); }}
+                                                        className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-black transition-colors"
+                                                        title="Settings"
+                                                    >
+                                                        <Sliders className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
+                                        ))}
+                                    </div>
 
-                                            <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[10px]">
-                                                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium border border-emerald-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                    <span>JSON AST Synced</span>
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md font-medium border border-sky-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-                                                    <span>Cloudflare R2 Live</span>
-                                                </span>
+                                    {/* 6. Bottom Banner: Looking to deploy an enterprise custom apex domain? */}
+                                    <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                                                <Globe className="w-6 h-6 text-[#2563EB]" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-extrabold text-slate-950 text-sm">
+                                                    Looking to deploy an enterprise custom apex domain?
+                                                </h4>
+                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                    Connect unlimited DNS records, reverse proxies, and automated edge caching rules.
+                                                </p>
                                             </div>
                                         </div>
 
-                                        <div className="p-3 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
-                                            <button 
-                                                onClick={() => onOpenEditorForSite(site)}
-                                                className="flex-1 py-2 px-3 rounded-xl bg-black hover:bg-neutral-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
-                                            >
-                                                <Edit3 className="w-3.5 h-3.5" />
-                                                <span>Edit</span>
-                                            </button>
-
-                                            <button 
-                                                onClick={() => openPreview(site)}
-                                                className="p-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 hover:text-black transition-colors"
-                                                title="Preview"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-
-                                            <button 
-                                                onClick={() => onDuplicateSite && onDuplicateSite(site)}
-                                                className="p-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 hover:text-black transition-colors"
-                                                title="Duplicate"
-                                            >
-                                                <CopyPlus className="w-4 h-4" />
-                                            </button>
-
-                                            <button 
-                                                onClick={() => onDeleteSite(site.id)}
-                                                className="p-2 rounded-xl bg-white hover:bg-rose-50 border border-gray-200 text-gray-400 hover:text-rose-600 transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                        <button 
+                                            onClick={() => setCurrentTab('domains')}
+                                            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors shrink-0"
+                                        >
+                                            Domain Manager
+                                        </button>
                                     </div>
-                                ))}
-
-                                {/* Add New Card */}
-                                <div 
-                                    onClick={() => setShowNewSiteModal(true)}
-                                    className="border-2 border-dashed border-gray-300 hover:border-black bg-white/60 hover:bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer group transition-all min-h-[220px]"
-                                >
-                                    <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-800 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                        <Plus className="w-6 h-6" />
-                                    </div>
-                                    <div className="font-bold text-gray-900 text-sm">Create</div>
-                                    <p className="text-xs text-gray-500 mt-1 max-w-[200px]">Launch a new website project with a customizable theme.</p>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            )}
 
                     {/* TAB: MEDIA LIBRARY */}
                     {currentTab === 'media' && (
@@ -1411,57 +1650,15 @@ export default function Dashboard({
 
                     {/* TAB: TEMPLATES */}
                     {currentTab === 'templates' && (
-                        <div>
-                            <div className="mb-6">
-                                <h1 className="text-2xl font-extrabold text-gray-900">Templates</h1>
-                                <p className="text-xs text-gray-500 mt-1">Pick any template to immediately spawn a new hosted site and launch the visual builder.</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                                <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xs">
-                                    <div>
-                                        <div className="h-36 rounded-xl bg-gradient-to-tr from-gray-900 to-gray-700 p-4 flex flex-col justify-between mb-4 text-white">
-                                            <span className="self-start text-[10px] font-bold px-2 py-0.5 rounded bg-white/20 text-white">Recommended</span>
-                                            <div className="font-bold text-lg">1 Column Responsive</div>
-                                        </div>
-                                        <h3 className="font-bold text-gray-900 text-base">Standard Theme</h3>
-                                        <p className="text-xs text-gray-500 mt-1">Complete multi-section business landing page with hero banner, feature blocks, text grids, and social icons.</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => {
-                                            setNewSiteName('My New Company');
-                                            setNewSiteTheme('standard/Y1_a_1_Column_Layout');
-                                            setShowNewSiteModal(true);
-                                        }}
-                                        className="mt-6 py-2.5 px-4 rounded-xl bg-black hover:bg-neutral-800 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-xs"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        <span>Use</span>
-                                    </button>
-                                </div>
-
-                                <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xs">
-                                    <div>
-                                        <div className="h-36 rounded-xl bg-gradient-to-tr from-gray-200 to-gray-100 p-4 flex flex-col justify-between mb-4 border border-gray-200 text-gray-900">
-                                            <span className="self-start text-[10px] font-bold px-2 py-0.5 rounded bg-gray-200 text-gray-800">Minimal</span>
-                                            <div className="font-bold text-lg">Blank Starter</div>
-                                        </div>
-                                        <h3 className="font-bold text-gray-900 text-base">Blank Canvas</h3>
-                                        <p className="text-xs text-gray-500 mt-1">A clean slate template. Build completely custom block hierarchies and layouts from scratch.</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => {
-                                            setNewSiteName('Fresh Blank Project');
-                                            setNewSiteTheme('standard/Y0_Blank');
-                                            setShowNewSiteModal(true);
-                                        }}
-                                        className="mt-6 py-2.5 px-4 rounded-xl bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-2xs"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        <span>Use</span>
-                                    </button>
-                                </div>
-                            </div>
+                        <div className="pb-10">
+                            <TemplateSelectorGallery 
+                                onSelectTemplate={(tmpl) => {
+                                    const siteName = prompt(`Enter a name for your new site using the ${tmpl.name} template:`, tmpl.name);
+                                    if (siteName && siteName.trim()) {
+                                        onCreateNewSite(siteName.trim(), tmpl.id);
+                                    }
+                                }}
+                            />
                         </div>
                     )}
 
@@ -1484,7 +1681,7 @@ export default function Dashboard({
                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Tier
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">Multi-tenant workspace authenticated via Better Auth RBAC.</p>
+                                            <p className="text-xs text-gray-500 mt-1">Multi-tenant workspace with role-based access control.</p>
                                         </div>
                                         <div className="text-right">
                                             <div className="text-2xl font-black text-gray-900">$49<span className="text-xs font-normal text-gray-500">/month</span></div>
@@ -1502,7 +1699,7 @@ export default function Dashboard({
                                             <ul className="space-y-1.5 text-[11px] text-gray-600 mb-4">
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 3 Hosted Websites</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 1 Team Seat</li>
-                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 10 GB Cloudflare R2</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 10 GB High-Speed Storage</li>
                                             </ul>
                                             <button 
                                                 onClick={async () => {
@@ -1528,13 +1725,13 @@ export default function Dashboard({
                                         {/* Tier 2: Pro (Active) */}
                                         <div className={`p-4 rounded-xl border relative transition-all ${user?.plan !== 'Starter Solo' && user?.plan !== 'Riga Enterprise Multi-Tenant' ? 'border-black bg-neutral-900 text-white shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
                                             <span className="absolute -top-2.5 right-3 bg-indigo-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
-                                            <div className="font-bold text-sm">Riga Enterprise Pro</div>
+                                            <div className="font-bold text-sm">riga Enterprise Pro</div>
                                             <div className="text-xl font-extrabold mt-1">$49<span className="text-xs font-normal opacity-70">/mo</span></div>
                                             <p className="text-[11px] opacity-70 mt-1 mb-3">Shopify-grade multi-tenant engine.</p>
                                             <ul className="space-y-1.5 text-[11px] opacity-90 mb-4">
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 20 Hosted Sites & Funnels</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 5 Team Seats with RBAC</li>
-                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 50 GB Cloudflare R2 Storage</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> 50 GB High-Speed Storage</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> Full JSON AST & CDN Purge</li>
                                             </ul>
                                             <button 
@@ -1553,7 +1750,7 @@ export default function Dashboard({
                                             <ul className="space-y-1.5 text-[11px] text-gray-600 mb-4">
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Unlimited Hosted Sites</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Unlimited Team Seats</li>
-                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 1 TB Cloudflare R2 Storage</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> 1 TB High-Speed Storage</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Custom Domain SSL Wildcards</li>
                                             </ul>
                                             <button 
@@ -1584,12 +1781,12 @@ export default function Dashboard({
                                     <div className="bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl shadow-xs">
                                         <h3 className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
                                             <Shield className="w-4 h-4 text-emerald-600" />
-                                            <span>Security & Better Auth Infrastructure</span>
+                                            <span>Security & Session Infrastructure</span>
                                         </h3>
                                         <div className="space-y-3 text-xs">
                                             <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                                                 <span className="text-gray-600">Authentication</span>
-                                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Better Auth RBAC</span>
+                                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Zero-Trust RBAC</span>
                                             </div>
                                             <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                                                 <span className="text-gray-600">Password Hashing</span>
@@ -1597,11 +1794,11 @@ export default function Dashboard({
                                             </div>
                                             <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                                                 <span className="text-gray-600">Database Engine</span>
-                                                <span className="font-semibold text-gray-800">Neon PostgreSQL (Live)</span>
+                                                <span className="font-semibold text-gray-800">Distributed Relational Cluster (Live)</span>
                                             </div>
                                             <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                                                <span className="text-gray-600">Object Storage</span>
-                                                <span className="font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">Cloudflare R2 Bucket</span>
+                                                <span className="text-gray-600">Edge Storage</span>
+                                                <span className="font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">Global Object Storage Engine</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1618,6 +1815,22 @@ export default function Dashboard({
                                                 <Globe className="w-4 h-4" />
                                                 <span>Public Landing Page</span>
                                             </button>
+                                            <div className="pt-2 grid grid-cols-2 gap-2">
+                                                <button onClick={onGoToStatus} className="py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <span>System Status</span>
+                                                </button>
+                                                <button onClick={onGoToTrust} className="py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                                                    <Shield className="w-3.5 h-3.5 text-gray-600" />
+                                                    <span>Trust Center</span>
+                                                </button>
+                                                <button onClick={onGoToPrivacy} className="py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                                                    <span>Privacy Policy</span>
+                                                </button>
+                                                <button onClick={onGoToTerms} className="py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                                                    <span>Terms of Use</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1840,6 +2053,8 @@ export default function Dashboard({
                             onBack={() => setCurrentTab('plugins')}
                             notify={notify || alert}
                         />
+                    )}
+                        </>
                     )}
                 </div>
             </main>
@@ -2246,7 +2461,7 @@ export default function Dashboard({
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <p className="text-xs text-gray-500 mb-5">Switch between active organizations or provision a new isolated workspace powered by Better Auth.</p>
+                        <p className="text-xs text-gray-500 mb-5">Switch between active organizations or provision a new isolated workspace.</p>
 
                         {/* Current Workspaces List */}
                         <div className="mb-6 space-y-2">

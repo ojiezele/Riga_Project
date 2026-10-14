@@ -12,7 +12,7 @@ export const user = pgTable('user', {
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
   role: text('role').notNull().default('Owner'),
-  plan: text('plan').notNull().default('WordPress Pro SaaS'),
+  plan: text('plan').notNull().default('Riga SaaS Enterprise'),
   banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
@@ -99,7 +99,7 @@ export const subscriptions = pgTable('subscriptions', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
   organizationId: text('organization_id'),
-  plan: text('plan').notNull().default('WordPress Pro SaaS'),
+  plan: text('plan').notNull().default('Riga SaaS Enterprise'),
   status: text('status').notNull().default('active'),
   billingCycle: text('billing_cycle').notNull().default('monthly'),
   price: text('price').notNull().default('$49'),
@@ -122,7 +122,7 @@ export const users = pgTable('users', {
   email: text('email').notNull(),
   name: text('name').notNull().default(''),
   role: text('role').notNull().default('Owner'),
-  plan: text('plan').notNull().default('WordPress Pro SaaS'),
+  plan: text('plan').notNull().default('Riga SaaS Enterprise'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

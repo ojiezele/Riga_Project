@@ -1,6 +1,6 @@
 /**
  * Site Compiler Service
- * Mimics Shopify / Wix / WordPress.com production site compilation:
+ * Mimics Shopify / Wix / Webflow production site compilation:
  * 1. Takes raw builder editor DOM / HTML + JSON AST
  * 2. Normalizes all media paths, theme icons, local uploads, and vector icons
  * 3. Strips editor artifacts (contenteditable, builder-element markers, drop hints, hover rings)
