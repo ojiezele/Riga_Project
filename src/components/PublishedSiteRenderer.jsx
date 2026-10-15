@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Globe, Edit3, ArrowLeft, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Globe, Edit3, ArrowLeft, ExternalLink, ChevronUp, ChevronDown, Layers, FileText } from 'lucide-react';
 import { normalizeHtmlMediaAssets } from '../utils/siteCompiler.js';
 import { pluginManager } from '../utils/pluginEngine.js';
+import { getReplicatedPageTemplate } from '../utils/pageTemplates.js';
+import { compilePageAstToHtml } from '../utils/pageAstCompiler.js';
 
 export default function PublishedSiteRenderer({ 
     siteId, 
@@ -10,6 +12,7 @@ export default function PublishedSiteRenderer({
     onOpenEditorForSite 
 }) {
     const [bannerCollapsed, setBannerCollapsed] = useState(false);
+    const [activePage, setActivePage] = useState('Home');
 
     // Find target site by ID, subdomain slug, or lowercase name
     const site = sites.find(s => 
@@ -39,28 +42,53 @@ export default function PublishedSiteRenderer({
         );
     }
 
-    let normalizedHtml = site.htmlContent 
-        ? normalizeHtmlMediaAssets(site.htmlContent, site.theme)
-        : null;
-
-    if (normalizedHtml && site.jsonData) {
+    // Parse JSON AST data if available
+    const parsedJson = useMemo(() => {
+        if (!site.jsonData) return {};
         try {
-            const parsedJson = typeof site.jsonData === 'string' ? JSON.parse(site.jsonData) : site.jsonData;
-            if (parsedJson?.plugins) {
+            return typeof site.jsonData === 'string' ? JSON.parse(site.jsonData) : site.jsonData;
+        } catch (e) {
+            return {};
+        }
+    }, [site.jsonData]);
+
+    // Available pages list
+    const availablePages = useMemo(() => {
+        const standard = ['Home', 'About Us', 'Services', 'Contact'];
+        const savedPages = parsedJson.pages ? Object.keys(parsedJson.pages) : [];
+        return Array.from(new Set([...standard, ...savedPages]));
+    }, [parsedJson]);
+
+    // Render HTML for active page
+    const renderedHtml = useMemo(() => {
+        let baseHtml = null;
+
+        if (activePage === 'Home' && site.htmlContent) {
+            baseHtml = normalizeHtmlMediaAssets(site.htmlContent, site.theme);
+        } else {
+            // Get page data from saved pages, or generate replicated template
+            const pageData = parsedJson.pages?.[activePage] || getReplicatedPageTemplate(activePage, site.theme, site);
+            baseHtml = compilePageAstToHtml(pageData, site.theme, site.name);
+        }
+
+        if (baseHtml && parsedJson?.plugins) {
+            try {
                 const bundle = pluginManager.generateClientRuntimeBundle({ jsonData: parsedJson, siteId: site.id, siteTitle: site.name });
-                if (bundle.css && !normalizedHtml.includes('riga-wa-float')) {
-                    normalizedHtml = normalizedHtml.includes('</head>') 
-                        ? normalizedHtml.replace('</head>', `<style id="riga-plugins-preview">${bundle.css}</style></head>`)
-                        : `<style id="riga-plugins-preview">${bundle.css}</style>${normalizedHtml}`;
+                if (bundle.css && !baseHtml.includes('riga-wa-float')) {
+                    baseHtml = baseHtml.includes('</head>') 
+                        ? baseHtml.replace('</head>', `<style id="riga-plugins-preview">${bundle.css}</style></head>`)
+                        : `<style id="riga-plugins-preview">${bundle.css}</style>${baseHtml}`;
                 }
-                if (bundle.js && !normalizedHtml.includes('riga-whatsapp-widget')) {
-                    normalizedHtml = normalizedHtml.includes('</body>')
-                        ? normalizedHtml.replace('</body>', `<script id="riga-plugins-runtime">${bundle.js}</script></body>`)
-                        : `${normalizedHtml}<script id="riga-plugins-runtime">${bundle.js}</script>`;
+                if (bundle.js && !baseHtml.includes('riga-whatsapp-widget')) {
+                    baseHtml = baseHtml.includes('</body>')
+                        ? baseHtml.replace('</body>', `<script id="riga-plugins-runtime">${bundle.js}</script></body>`)
+                        : `${baseHtml}<script id="riga-plugins-runtime">${bundle.js}</script>`;
                 }
-            }
-        } catch (e) {}
-    }
+            } catch (e) {}
+        }
+
+        return baseHtml;
+    }, [activePage, site, parsedJson]);
 
     const directSiteUrl = `/sites/${site.id}`;
 
@@ -76,26 +104,43 @@ export default function PublishedSiteRenderer({
                     >
                         <Globe className="w-3.5 h-3.5 text-emerald-400" />
                         <span>{site.name}</span>
+                        <span className="text-[10px] text-gray-400">({activePage})</span>
                         <ChevronDown className="w-3 h-3 text-gray-400" />
                     </button>
                 ) : (
                     <div className="flex items-center gap-2 bg-black/90 text-white px-3 py-2 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 text-xs animate-in fade-in">
                         <div className="flex items-center gap-1.5 pr-2 border-r border-white/20">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span className="font-semibold text-white truncate max-w-[150px]">{site.name}</span>
+                            <span className="font-semibold text-white truncate max-w-[140px]">{site.name}</span>
                             <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
                                 ({site.subdomain || `${site.name.toLowerCase()}.site`})
                             </span>
+                        </div>
+
+                        {/* Multi-Page Route Switcher */}
+                        <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-lg border border-white/10">
+                            <FileText className="w-3 h-3 text-emerald-400" />
+                            <select 
+                                value={activePage}
+                                onChange={(e) => setActivePage(e.target.value)}
+                                className="bg-transparent border-0 text-white text-[11px] font-semibold focus:outline-none cursor-pointer pr-1"
+                            >
+                                {availablePages.map((pg, i) => (
+                                    <option key={i} value={pg} className="bg-neutral-900 text-white">
+                                        {pg}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {onOpenEditorForSite && (
                             <button
                                 onClick={() => onOpenEditorForSite(site)}
                                 className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white font-medium flex items-center gap-1 transition-colors"
-                                title="Edit Website"
+                                title="Edit Website in Visual Builder"
                             >
                                 <Edit3 className="w-3 h-3" />
-                                <span>Edit</span>
+                                <span className="hidden sm:inline">Edit</span>
                             </button>
                         )}
 
@@ -104,10 +149,10 @@ export default function PublishedSiteRenderer({
                             target="_blank"
                             rel="noreferrer"
                             className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-medium flex items-center gap-1 transition-colors"
-                            title="Open in New Tab"
+                            title="Open Standalone in New Tab"
                         >
                             <ExternalLink className="w-3 h-3" />
-                            <span>Open Tab</span>
+                            <span className="hidden sm:inline">Open Tab</span>
                         </a>
 
                         <button
@@ -132,8 +177,8 @@ export default function PublishedSiteRenderer({
 
             {/* Edge-to-edge full width standalone website render */}
             <iframe 
-                {...(normalizedHtml ? { srcDoc: normalizedHtml } : { src: directSiteUrl })}
-                title={site.name}
+                {...(renderedHtml ? { srcDoc: renderedHtml } : { src: directSiteUrl })}
+                title={`${site.name} — ${activePage}`}
                 className="w-full h-full border-0 m-0 p-0 block"
                 style={{ width: '100vw', height: '100vh', border: 'none' }}
             />

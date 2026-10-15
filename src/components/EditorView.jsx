@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
     ArrowLeft, Save, Globe, Download, Eye, EyeOff, Smartphone, 
     Tablet, Monitor, Sparkles, Check, RefreshCw, Trash2, Sliders,
-    FileText, Plus, Settings, ExternalLink, X, Code, Share2,
+    FileText, Plus, Settings, ExternalLink, X, Code, Share2, Copy,
     PanelLeftClose, PanelLeftOpen, Undo2, Redo2, Eraser, Palette
 } from 'lucide-react';
 import Builder from '../../builder.js';
 import { compileWebsiteForProduction, normalizeHtmlMediaAssets } from '../utils/siteCompiler.js';
 import PluginsPanel from './PluginsPanel.jsx';
+import { getReplicatedPageTemplate } from '../utils/pageTemplates.js';
+import { compilePageAstToHtml } from '../utils/pageAstCompiler.js';
 
 export const AVAILABLE_THEMES = [
     { 
@@ -231,7 +233,25 @@ export default function EditorView({
                     dataToLoad = await response.json();
                 }
 
-                pageDataMapRef.current[activePage] = dataToLoad;
+                pageDataMapRef.current['Home'] = dataToLoad;
+                if (activePage !== 'Home') {
+                    pageDataMapRef.current[activePage] = dataToLoad;
+                }
+
+                // Restore saved pages from JSON if present
+                if (dataToLoad?.pages && typeof dataToLoad.pages === 'object') {
+                    Object.assign(pageDataMapRef.current, dataToLoad.pages);
+                    const savedKeys = Object.keys(dataToLoad.pages);
+                    setPages(prev => Array.from(new Set([...prev, ...savedKeys])));
+                }
+
+                // Replicate all remaining default pages if not yet populated
+                const defaultPages = ['About Us', 'Services', 'Contact'];
+                defaultPages.forEach(pName => {
+                    if (!pageDataMapRef.current[pName]) {
+                        pageDataMapRef.current[pName] = getReplicatedPageTemplate(pName, themeDir, site);
+                    }
+                });
 
                 await window.builder.load(dataToLoad, themeUrl, () => {
                     if (window.builder) {
@@ -300,8 +320,13 @@ export default function EditorView({
         if (!window.builder) return;
         setSaving(true);
         try {
+            if (window.builder) {
+                pageDataMapRef.current[activePage] = window.builder.getData();
+            }
             const data = window.builder.getData();
             data.plugins = sitePlugins;
+            data.pages = { ...pageDataMapRef.current };
+            data.activePage = activePage;
             const html = window.builder.getHtml();
             const payload = new URLSearchParams();
             payload.append('dir', themeDir);
@@ -335,7 +360,7 @@ export default function EditorView({
                 } catch (e) {
                     console.error('Error syncing draft with saas db:', e);
                 }
-                notify('Draft saved successfully!');
+                notify('Draft saved with all replicated pages!');
                 if (onSaveSuccess) onSaveSuccess({ ...site, name: siteTitle, status: 'draft', htmlContent: html, jsonData: data });
             } else {
                 notify('Error saving draft: ' + (resData.message || 'Unknown'), 'error');
@@ -352,9 +377,14 @@ export default function EditorView({
         if (!window.builder) return;
         setPublishing(true);
         try {
+            if (window.builder) {
+                pageDataMapRef.current[activePage] = window.builder.getData();
+            }
             const rawHtml = window.builder.getHtml();
             const rawData = window.builder.getData();
             rawData.plugins = sitePlugins;
+            rawData.pages = { ...pageDataMapRef.current };
+            rawData.activePage = activePage;
 
             // Run production compiler: strips builder artifacts, normalizes responsive layout, injects edge CRM runtime
             const compilation = compileWebsiteForProduction({
@@ -416,7 +446,7 @@ export default function EditorView({
         setShowLivePreviewModal(true);
     };
 
-    // Switch Active Page with per-page state preservation
+    // Switch Active Page with per-page state preservation & instant template replication
     const handleSwitchPage = (newPage) => {
         if (!newPage || newPage === activePage) return;
         if (window.builder) {
@@ -424,22 +454,21 @@ export default function EditorView({
                 // Save current page state
                 pageDataMapRef.current[activePage] = window.builder.getData();
 
-                if (pageDataMapRef.current[newPage]) {
-                    window.builder.parse(pageDataMapRef.current[newPage]);
-                    window.builder.render();
-                } else {
-                    const currentData = window.builder.getData();
-                    const freshPage = {
-                        theme: currentData.theme || '1_Column_Layout',
-                        name: 'PageElement',
-                        elementLists: [
-                            currentData.elementLists?.[0] || []
-                        ]
-                    };
-                    pageDataMapRef.current[newPage] = freshPage;
-                    window.builder.parse(freshPage);
-                    window.builder.render();
+                let targetData = pageDataMapRef.current[newPage];
+                if (!targetData) {
+                    targetData = getReplicatedPageTemplate(newPage, activeTheme, site);
+                    pageDataMapRef.current[newPage] = targetData;
                 }
+
+                window.builder.parse(targetData);
+                window.builder.render();
+                if (window.builder.unselect) {
+                    try { window.builder.unselect(); } catch {}
+                }
+                window.builder.setMode('design');
+
+                setHistory([JSON.parse(JSON.stringify(targetData))]);
+                setHistoryIndex(0);
             } catch (err) {
                 console.warn('Error switching page canvas:', err);
             }
@@ -448,18 +477,70 @@ export default function EditorView({
         notify(`Switched to "${newPage}"`);
     };
 
-    // Add New Page to Site
-    const handleAddPage = (e) => {
-        e.preventDefault();
-        if (!newPageTitle.trim()) return;
-        const formatted = newPageTitle.trim();
+    // Add New Page to Site with automatic template replication
+    const handleAddPage = (titleOrEvent, templateKey = null) => {
+        let title = '';
+        if (typeof titleOrEvent === 'string') {
+            title = titleOrEvent;
+        } else if (titleOrEvent?.preventDefault) {
+            titleOrEvent.preventDefault();
+            title = newPageTitle;
+        }
+
+        if (!title || !title.trim()) return;
+        const formatted = title.trim();
         if (!pages.includes(formatted)) {
             setPages(prev => [...prev, formatted]);
-            handleSwitchPage(formatted);
-            notify(`Page "${formatted}" created!`);
         }
+
+        const templateData = getReplicatedPageTemplate(templateKey || formatted, activeTheme, site);
+        pageDataMapRef.current[formatted] = templateData;
+        handleSwitchPage(formatted);
+        notify(`Page "${formatted}" replicated and loaded!`);
         setNewPageTitle('');
         setShowNewPageModal(false);
+    };
+
+    // Duplicate Current Active Page
+    const handleDuplicatePage = () => {
+        if (!window.builder) return;
+        const currentData = window.builder.getData();
+        pageDataMapRef.current[activePage] = currentData;
+        let copyName = `${activePage} (Copy)`;
+        let counter = 2;
+        while (pages.includes(copyName)) {
+            copyName = `${activePage} (Copy ${counter++})`;
+        }
+        setPages(prev => [...prev, copyName]);
+        pageDataMapRef.current[copyName] = JSON.parse(JSON.stringify(currentData));
+        handleSwitchPage(copyName);
+        notify(`Duplicated as "${copyName}"!`);
+    };
+
+    // Delete a Page
+    const handleDeletePage = (pageToDelete) => {
+        if (pages.length <= 1) {
+            notify('Cannot delete the only remaining page', 'error');
+            return;
+        }
+        if (!confirm(`Are you sure you want to delete the "${pageToDelete}" page?`)) return;
+        const nextPages = pages.filter(p => p !== pageToDelete);
+        delete pageDataMapRef.current[pageToDelete];
+        setPages(nextPages);
+        if (activePage === pageToDelete) {
+            handleSwitchPage(nextPages[0]);
+        }
+        notify(`Page "${pageToDelete}" deleted`);
+    };
+
+    // Replicate All Remaining Pages in One Click
+    const handleReplicateAllRemainingPages = () => {
+        const remainingToReplicate = ['About Us', 'Services', 'Contact', 'Pricing'];
+        remainingToReplicate.forEach(pName => {
+            pageDataMapRef.current[pName] = getReplicatedPageTemplate(pName, activeTheme, site);
+        });
+        setPages(prev => Array.from(new Set([...prev, ...remainingToReplicate])));
+        notify('Successfully replicated all remaining pages (About Us, Services, Contact, Pricing)!');
     };
 
     // AI Generate Page
@@ -524,25 +605,59 @@ export default function EditorView({
                         </a>
                     </div>
 
-                    {/* Multi-Page Selector */}
-                    <div className="hidden xl:flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-200 ml-1">
-                        <FileText className="w-3 h-3 text-gray-500" />
+                    {/* Multi-Page Selector & Replicator Toolbar */}
+                    <div className="flex items-center gap-1.5 bg-gray-50/90 px-2 py-1 rounded-xl border border-gray-200 ml-1">
+                        <FileText className="w-3.5 h-3.5 text-gray-500" />
                         <select 
                             value={activePage}
                             onChange={(e) => handleSwitchPage(e.target.value)}
-                            className="bg-transparent border-0 text-[11px] font-semibold text-gray-900 focus:outline-none cursor-pointer pr-1"
+                            className="bg-transparent border-0 text-xs font-bold text-gray-950 focus:outline-none cursor-pointer pr-1"
                         >
                             {pages.map((p, i) => (
                                 <option key={i} value={p} className="bg-white text-gray-900">{p}</option>
                             ))}
                         </select>
+
+                        <div className="h-3.5 w-px bg-gray-200 mx-0.5" />
+
+                        {/* 1-Click Replicate Remaining Pages */}
+                        <button
+                            onClick={handleReplicateAllRemainingPages}
+                            className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold flex items-center gap-1 transition-colors border border-emerald-200/60"
+                            title="Replicate all remaining pages (About Us, Services, Contact, Pricing) with full pre-styled templates"
+                        >
+                            <Sparkles className="w-3 h-3 text-emerald-600" />
+                            <span className="hidden lg:inline">Replicate Pages</span>
+                        </button>
+
+                        {/* Add Page */}
                         <button 
                             onClick={() => setShowNewPageModal(true)}
-                            className="text-gray-500 hover:text-black p-0.5"
-                            title="Add page"
+                            className="text-gray-500 hover:text-black p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Add or Replicate a Page"
                         >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Duplicate Page */}
+                        <button
+                            onClick={handleDuplicatePage}
+                            className="text-gray-400 hover:text-gray-800 p-1 hover:bg-gray-100 rounded-lg transition-colors hidden sm:block"
+                            title="Duplicate active page"
+                        >
+                            <Copy className="w-3 h-3" />
+                        </button>
+
+                        {/* Delete Page */}
+                        {pages.length > 1 && (
+                            <button
+                                onClick={() => handleDeletePage(activePage)}
+                                className="text-gray-400 hover:text-rose-600 p-1 hover:bg-rose-50 rounded-lg transition-colors hidden sm:block"
+                                title={`Delete "${activePage}" page`}
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -630,17 +745,17 @@ export default function EditorView({
                     {/* Live Preview Modal Button */}
                     <button 
                         onClick={handleOpenLivePreview}
-                        className="px-2 py-1 rounded-lg bg-white hover:bg-gray-100 text-gray-800 text-[11px] font-semibold flex items-center gap-1 transition-colors border border-gray-200 shadow-2xs"
-                        title="Responsive preview"
+                        className="px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-semibold text-xs flex items-center gap-1.5 transition-colors border border-outline-variant/40 shadow-xs"
+                        title="Responsive preview in Desktop, Tablet, and Mobile frames"
                     >
-                        <Eye className="w-3.5 h-3.5 text-gray-900" />
-                        <span className="hidden md:inline">Preview</span>
+                        <Eye className="w-3.5 h-3.5 text-primary" />
+                        <span>Preview</span>
                     </button>
 
                     {/* AI Assistant */}
                     <button 
                         onClick={() => setShowAiModal(true)}
-                        className="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-semibold flex items-center gap-1 transition-colors shadow-2xs"
+                        className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs"
                         title="AI Assistant"
                     >
                         <Sparkles className="w-3.5 h-3.5 text-purple-600" />
@@ -651,9 +766,9 @@ export default function EditorView({
                     <button 
                         onClick={handleSaveDraft}
                         disabled={saving}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-gray-100 text-gray-800 text-[11px] font-semibold flex items-center gap-1 transition-colors border border-gray-200 shadow-2xs"
+                        className="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-gray-200 shadow-2xs"
                     >
-                        {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 text-gray-600" />}
                         <span>Save</span>
                     </button>
 
@@ -661,7 +776,8 @@ export default function EditorView({
                     <button 
                         onClick={handlePublishLive}
                         disabled={publishing}
-                        className="px-3 py-1 rounded-lg bg-black hover:bg-neutral-800 text-white text-[11px] font-semibold flex items-center gap-1 shadow-2xs transition-all"
+                        className="px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-blue-500/25 transition-all disabled:opacity-50"
+                        title="Deploy & publish live site instantly"
                     >
                         {publishing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
                         <span>Publish</span>
@@ -771,22 +887,57 @@ export default function EditorView({
                 </div>
             </div>
 
-            {/* MODAL: ADD NEW PAGE */}
+            {/* MODAL: ADD / REPLICATE NEW PAGE */}
             {showNewPageModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in">
-                    <div className="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-                        <h2 className="text-base font-bold text-gray-900 mb-1">Add Page</h2>
-                        <p className="text-xs text-gray-500 mb-4">Create an additional page for this website (e.g. About, Pricing, Contact).</p>
+                    <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-base font-bold text-gray-900">Add or Replicate Page</h2>
+                            <button onClick={() => setShowNewPageModal(false)} className="text-gray-400 hover:text-black">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4">Pick a pre-styled template preset to replicate immediately, or enter a custom title.</p>
 
-                        <form onSubmit={handleAddPage} className="space-y-4">
+                        {/* Quick Presets */}
+                        <div className="mb-4">
+                            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2">Popular Replicated Presets</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { title: 'About Us', desc: 'Mission, story, stats & team' },
+                                    { title: 'Services', desc: 'Feature cards, tabs & FAQ' },
+                                    { title: 'Contact', desc: 'Interactive form & channels' },
+                                    { title: 'Pricing', desc: '3-tier pricing & tables' },
+                                    { title: 'Portfolio', desc: 'Case studies & showcase' },
+                                    { title: 'Blog', desc: 'Articles & newsletter' },
+                                    { title: 'Team', desc: 'Leadership & executive bios' },
+                                    { title: 'FAQ', desc: 'Accordion help center' }
+                                ].map((preset) => (
+                                    <button
+                                        key={preset.title}
+                                        type="button"
+                                        onClick={() => handleAddPage(preset.title, preset.title)}
+                                        className="p-2.5 rounded-xl border border-gray-200 hover:border-black hover:bg-gray-50 text-left transition-all group"
+                                    >
+                                        <div className="text-xs font-bold text-gray-900 group-hover:text-black flex items-center justify-between">
+                                            <span>{preset.title}</span>
+                                            <Sparkles className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 line-clamp-1">{preset.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Custom Title Input */}
+                        <form onSubmit={(e) => handleAddPage(e, newPageTitle)} className="space-y-4 pt-2 border-t border-gray-100">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Title</label>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Custom Page Name</label>
                                 <input 
                                     type="text"
-                                    required
                                     value={newPageTitle}
                                     onChange={(e) => setNewPageTitle(e.target.value)}
-                                    placeholder="e.g. Pricing"
+                                    placeholder="e.g. Careers, Press, Whitepaper"
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black"
                                 />
                             </div>
@@ -801,9 +952,10 @@ export default function EditorView({
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-xs"
+                                    disabled={!newPageTitle.trim()}
+                                    className="px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold text-xs shadow-xs transition-colors"
                                 >
-                                    Create
+                                    Create Page
                                 </button>
                             </div>
                         </form>
@@ -924,6 +1076,24 @@ export default function EditorView({
                             <span className="text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                                 https://{siteSubdomain}
                             </span>
+                            {/* Preview Page Switcher */}
+                            <div className="flex items-center gap-1.5 bg-gray-100 px-2.5 py-1 rounded-xl border border-gray-200 ml-2">
+                                <FileText className="w-3.5 h-3.5 text-gray-500" />
+                                <select
+                                    value={activePage}
+                                    onChange={(e) => {
+                                        const pg = e.target.value;
+                                        const pageAst = pageDataMapRef.current[pg] || getReplicatedPageTemplate(pg, activeTheme, site);
+                                        const compiled = compilePageAstToHtml(pageAst, activeTheme, siteTitle);
+                                        setPreviewHtml(compiled);
+                                    }}
+                                    className="bg-transparent border-0 text-xs font-bold text-gray-950 focus:outline-none cursor-pointer pr-1"
+                                >
+                                    {pages.map((p, i) => (
+                                        <option key={i} value={p}>{p}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         {/* Device Toggles */}

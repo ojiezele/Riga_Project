@@ -78,12 +78,12 @@ export default function SystemStatusPage({ onBackToApp, onGoToTrust }) {
         setTimeout(() => {
             setDownloadingSla(false);
             const blob = new Blob([
-                "riga System Status & Historical SLA Audit Report\nPeriod: October 2024\nUptime Achievement: 99.992%\n\nZero P0 outages detected. Compliant with SOC-2 & ISO-27001 availability thresholds."
+                "Studio Canvas System Status & Historical SLA Audit Report\nPeriod: October 2024\nUptime Achievement: 99.992%\n\nZero P0 outages detected. Compliant with SOC-2 & ISO-27001 availability thresholds."
             ], { type: 'application/pdf' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'riga-october-2024-sla-report.pdf';
+            a.download = 'studiocanvas-october-2024-sla-report.pdf';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -509,7 +509,7 @@ export default function SystemStatusPage({ onBackToApp, onGoToTrust }) {
                                 Looking for certified historical SLA audit reports?
                             </h4>
                             <p className="text-xs text-slate-500 max-w-xl">
-                                riga Enterprise commitments provide 99.99% availability backed by financial credits. Access signed monthly SOC2, ISO27001, and SOC3 operational certificates.
+                                Studio Canvas Enterprise commitments provide 99.99% availability backed by financial credits. Access signed monthly SOC2, ISO27001, and SOC3 operational certificates.
                             </p>
                         </div>
                     </div>
@@ -573,11 +573,11 @@ export default function SystemStatusPage({ onBackToApp, onGoToTrust }) {
                             </a>
                         </div>
                         <div className="flex items-center gap-4">
-                            <button onClick={onBackToApp} className="hover:text-slate-800">riga Dashboard</button>
+                            <button onClick={onBackToApp} className="hover:text-slate-800">Studio Canvas Dashboard</button>
                             <span>·</span>
                             <button onClick={onGoToTrust} className="hover:text-slate-800">Trust Center</button>
                             <span>·</span>
-                            <a href="mailto:sre@riga.design" className="hover:text-slate-800">Contact SRE Team</a>
+                            <a href="mailto:sre@Studio Canvas.design" className="hover:text-slate-800">Contact SRE Team</a>
                         </div>
                     </div>
                 </div>
@@ -590,7 +590,7 @@ export default function SystemStatusPage({ onBackToApp, onGoToTrust }) {
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span>99.98% Uptime recorded across past 90 days</span>
                         <span>·</span>
-                        <span>© 2025 riga Inc. All rights reserved.</span>
+                        <span>© 2025 Studio Canvas Inc. All rights reserved.</span>
                     </div>
                     <div className="flex items-center gap-4 text-[11px]">
                         <a href="#" className="hover:text-slate-700">Support Desk</a>

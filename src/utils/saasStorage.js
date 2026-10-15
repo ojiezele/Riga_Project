@@ -4,228 +4,278 @@
 const SAAS_STORAGE_KEY = 'riga_saas_workspace_state_v1';
 
 export const DEFAULT_SAAS_STATE = {
-  user: null,
+  user: {
+    name: "Alex Rivera",
+    email: "alex@rigastudio.agency",
+    role: "Owner",
+    plan: "Riga Enterprise Pro",
+    workspace: "Riga_Project"
+  },
   sites: [
     {
-      id: "site_luminary",
-      name: "Luminary Agency",
-      subdomain: "luminary.design",
-      category: "Portfolio",
-      tag: "Agency",
-      theme: "standard/Y1_a_1_Column_Layout",
-      status: "published",
-      statusBadge: "Published (SSL Active)",
-      visitors: "42.5k",
-      updated: "Edited 10 mins ago by Sarah",
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      id: "site_nordic",
-      name: "Nordic Roast Co.",
-      subdomain: "nordicroast.shop",
-      category: "E-Commerce",
-      tag: "E-Commerce",
-      theme: "standard/Y5_e_Commerce_Layout",
-      status: "published",
-      statusBadge: "Published (Custom Domain)",
-      visitors: "28.1k",
-      updated: "Last edited yesterday",
-      image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      id: "site_fintech",
-      name: "Fintech Pulse SaaS",
-      subdomain: "pulse-preview.riga.app",
-      category: "SaaS & Marketing",
+      id: "site_foodymax",
+      name: "foodymax",
+      subdomain: "foodymax-297.riga.site",
+      customDomain: "foodymax.delivery",
       tag: "SaaS",
+      category: "SaaS & Marketing",
+      status: "published",
+      statusBadge: "Production Live",
       theme: "standard/Y1_a_1_Column_Layout",
-      status: "staging",
-      statusBadge: "Staging (v2.1)",
-      visitors: "18.4k",
-      updated: "Edited 3 days ago",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80"
+      visitors: "94.2k",
+      bounceRate: "18.2%",
+      conversion: "4.82%",
+      updated: "Edited 12m ago",
+      image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80"
     },
     {
-      id: "site_elena",
-      name: "Elena Rostova Studio",
-      subdomain: "elenarostova.art",
-      category: "Portfolio",
+      id: "site_rigastudio",
+      name: "Riga Studio Design",
+      subdomain: "rigastudio.riga.site",
+      customDomain: "rigastudio.agency",
       tag: "Portfolio",
-      theme: "standard/Y3_c_3_Column_Layout",
+      category: "Portfolio",
       status: "published",
-      statusBadge: "Published",
-      visitors: "9.2k",
-      updated: "Last edited May 12",
-      image: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80"
+      statusBadge: "Production Live",
+      theme: "standard/Y0_Blank",
+      visitors: "32.6k",
+      bounceRate: "28.4%",
+      conversion: "3.15%",
+      updated: "Edited 2h ago",
+      image: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80"
     },
     {
-      id: "site_apex",
-      name: "Apex Ventures Pitch",
-      subdomain: "apex-deck.draft.internal",
+      id: "site_cloudstack",
+      name: "CloudStack Portal",
+      subdomain: "cloudstack.riga.site",
+      customDomain: "cloudstack-preview.canvas.sh",
+      tag: "SaaS",
       category: "SaaS & Marketing",
-      tag: "Internal",
-      theme: "standard/Y2_b_2_Column_Layout",
-      status: "draft",
-      statusBadge: "Draft (Password Protected)",
-      visitors: "1.8k",
-      updated: "Last edited May 10",
-      image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      id: "site_devflow",
-      name: "DevFlow Documentation",
-      subdomain: "docs.devflow.io",
-      category: "SaaS & Marketing",
-      tag: "Knowledge",
-      theme: "standard/Y4_d_Newsletter_Layout",
-      status: "published",
-      statusBadge: "Published",
-      visitors: "42.6k",
-      updated: "Published 2 weeks ago",
-      image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80"
+      status: "staging",
+      statusBadge: "Staging v2.4",
+      theme: "standard/Y0_Blank",
+      visitors: "15.4k",
+      bounceRate: "22.1%",
+      conversion: "2.90%",
+      team: "4 reviewers",
+      lastDeploy: "Build #819",
+      updated: "Edited yesterday",
+      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80"
     }
   ],
   team: [
     {
       id: "t_1",
-      name: "Ojiezele",
-      email: "ojiezele0@gmail.com",
+      name: "Alex Rivera",
+      email: "alex@rigastudio.agency",
       role: "Owner",
-      status: "Active"
+      status: "Active",
+      lastActive: "Just now",
+      isPrimary: true,
+      verified: true
     },
     {
       id: "t_2",
-      name: "Sarah Jenkins",
-      email: "sarah@riga.site",
+      name: "Sofia Lindqvist",
+      email: "sofia@rigastudio.agency",
       role: "Administrator",
-      status: "Active"
+      status: "Active",
+      lastActive: "2 hours ago",
+      verified: false
     },
     {
       id: "t_3",
-      name: "Alex Rivera",
-      email: "alex@riga.site",
+      name: "Marcus Brody",
+      email: "marcus@client.com",
       role: "Editor",
-      status: "Pending"
+      status: "Active",
+      lastActive: "Oct 14",
+      verified: false
+    },
+    {
+      id: "t_4",
+      name: "Emma Watson",
+      email: "emma@partner.co",
+      role: "Subscriber",
+      status: "Pending Invite",
+      lastActive: "Never",
+      verified: false
     }
   ],
   domains: [
     {
       id: "d_1",
-      site: "My Portfolio",
-      domain: "portfolio.riga.site",
+      site: "foodymax",
+      siteSub: "Production (v2.4)",
+      domain: "foodymax-297.riga.site",
       type: "Subdomain",
-      ssl: "Active"
+      ssl: "Active",
+      dnsStatus: "Propagated"
     },
     {
       id: "d_2",
-      site: "Startup Landing",
-      domain: "startup.riga.site",
-      type: "Subdomain",
-      ssl: "Pending"
+      site: "foodymax",
+      siteSub: "Apex Domain",
+      domain: "foodymax.delivery",
+      type: "Custom Apex",
+      ssl: "Active",
+      dnsStatus: "Propagated"
+    },
+    {
+      id: "d_3",
+      site: "Riga Studio Design",
+      siteSub: "Agency Portfolio",
+      domain: "rigastudio.agency",
+      type: "Custom Domain",
+      ssl: "Issuing",
+      dnsStatus: "Validating (1/2)"
     }
   ],
   media: [
     {
       id: "m_1",
-      title: "Modern Office Workspace Banner",
-      url: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
-      type: "image/jpeg",
-      size: "240 KB",
-      dimensions: "1200 x 800",
-      category: "Hero Banners",
-      uploadedAt: "2026-10-10"
+      title: "hero-foodymax-autumn.webp",
+      url: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80",
+      type: "WEBP",
+      size: "420 KB",
+      dimensions: "1920 × 1080",
+      category: "Banners",
+      uploadedAt: "Oct 14, 2026"
     },
     {
       id: "m_2",
-      title: "Cloud Analytics Dashboard Mockup",
-      url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
-      type: "image/jpeg",
-      size: "180 KB",
-      dimensions: "1200 x 750",
-      category: "Product UI",
-      uploadedAt: "2026-10-10"
+      title: "foodymax-logo-horizontal.svg",
+      url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      type: "SVG",
+      size: "14 KB",
+      dimensions: "Vector scalable",
+      category: "Logos",
+      uploadedAt: "Oct 12, 2026"
     },
     {
       id: "m_3",
-      title: "Minimal Brand Logo Mark",
-      url: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-      type: "image/png",
-      size: "34 KB",
-      dimensions: "512 x 512",
-      category: "Logos & Icons",
-      uploadedAt: "2026-10-09"
+      title: "builder-canvas-preview.png",
+      url: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80",
+      type: "PNG",
+      size: "890 KB",
+      dimensions: "1280 × 800",
+      category: "UI",
+      uploadedAt: "Oct 11, 2026"
     },
     {
       id: "m_4",
-      title: "Team Collaboration Meeting",
-      url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
-      type: "image/jpeg",
-      size: "310 KB",
-      dimensions: "1200 x 800",
+      title: "alex-founder-portrait.jpg",
+      url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80",
+      type: "JPG",
+      size: "112 KB",
+      dimensions: "800 × 800",
       category: "Team",
-      uploadedAt: "2026-10-08"
+      uploadedAt: "Oct 08, 2026"
+    },
+    {
+      id: "m_5",
+      title: "gourmet-burger-menu.webp",
+      url: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80",
+      type: "WEBP",
+      size: "340 KB",
+      dimensions: "1200 × 800",
+      category: "Banners",
+      uploadedAt: "Oct 06, 2026"
+    },
+    {
+      id: "m_6",
+      title: "system-icons-sprite.svg",
+      url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      type: "SVG",
+      size: "28 KB",
+      dimensions: "Vector symbol pack",
+      category: "UI",
+      uploadedAt: "Oct 01, 2026"
     }
   ],
   leads: [
     {
       id: "lead_1",
-      site: "My Portfolio",
-      formName: "Contact Inquiry",
-      name: "Marcus Vance",
-      email: "marcus@vancetech.io",
-      message: "Hi, we are looking for a complete website overhaul for our SaaS platform. What is your turnaround time?",
-      date: "2026-10-10 11:24",
+      site: "foodymax · Inbound Enterprise",
+      name: "Sarah Jenkins",
+      initials: "SJ",
+      avatarBg: "bg-purple-100 text-purple-700",
+      email: "sarah.j@enterprise.co",
+      message: "Interested in custom menu integration and wholesale ordering pipeline for 14 regional locations.",
+      date: "10 mins ago",
+      time: "Today, 10:24 AM",
       status: "New"
     },
     {
       id: "lead_2",
-      site: "Startup Landing",
-      formName: "Newsletter Waitlist",
-      name: "Elena Rostova",
-      email: "elena.design@gmail.com",
-      message: "Subscribed to product updates waitlist.",
-      date: "2026-10-09 17:40",
-      status: "Contacted"
+      site: "foodymax · Demo Request",
+      name: "David Chen",
+      initials: "DC",
+      avatarBg: "bg-blue-100 text-blue-700",
+      email: "david@chencapital.io",
+      message: "Can we schedule a 15-minute walkthrough of the edge-hosted delivery tracking module?",
+      date: "1 hour ago",
+      time: "Today, 09:15 AM",
+      status: "New"
     },
     {
       id: "lead_3",
-      site: "My Portfolio",
-      formName: "Enterprise Consultation",
-      name: "David Sterling",
-      email: "d.sterling@acmecorp.com",
-      message: "Requesting a demo for multi-region site hosting and team RBAC permissions.",
-      date: "2026-10-08 09:15",
+      site: "Riga Portfolio · Contact Form",
+      name: "Elena Rostova",
+      initials: "ER",
+      avatarBg: "bg-blue-100 text-blue-700",
+      email: "elena@nordicdesign.se",
+      message: "Loving the site speed! Are you accepting commissions for architectural interior portfolio templates?",
+      date: "Yesterday",
+      time: "4:42 PM",
+      status: "Contacted"
+    },
+    {
+      id: "lead_4",
+      site: "foodymax · Newsletter",
+      name: "Marcus Brody",
+      initials: "MB",
+      avatarBg: "bg-blue-100 text-blue-700",
+      email: "marcus@fastretail.com",
+      message: "Subscribed to weekly product drop alerts and seasonal chef menus.",
+      date: "Oct 14, 2026",
+      time: "11:18 AM",
+      status: "Contacted"
+    },
+    {
+      id: "lead_5",
+      site: "foodymax · Partnership",
+      name: "Chloe Bennett",
+      initials: "CB",
+      avatarBg: "bg-slate-100 text-slate-700",
+      email: "c.bennett@growthlab.com",
+      message: "Inquiry regarding influencer co-marketing campaign and coupon funnel activation.",
+      date: "Oct 12, 2026",
+      time: "02:30 PM",
       status: "Archived"
     }
   ],
   activity: [
     {
       id: "act_1",
-      user: "Ojiezele",
-      action: "Published live updates to My Portfolio",
-      site: "My Portfolio",
-      timestamp: "12 minutes ago"
+      user: "Alex Rivera",
+      action: "invited Emma Watson as Subscriber",
+      timestamp: "Oct 16, 14:22 GMT",
+      type: "invite"
     },
     {
       id: "act_2",
-      user: "Sarah Jenkins",
-      action: "Connected custom domain acme.com",
-      site: "Startup Landing",
-      timestamp: "2 hours ago"
+      user: "Alex Rivera",
+      action: "promoted Sofia Lindqvist from Editor to Administrator",
+      timestamp: "Oct 12, 09:14 GMT",
+      type: "promote"
     },
     {
       id: "act_3",
-      user: "Ojiezele",
-      action: "Invited Alex Rivera as Editor",
-      site: "Workspace",
-      timestamp: "Yesterday"
-    },
-    {
-      id: "act_4",
       user: "System",
-      action: "Automated Let's Encrypt TLS 1.3 certificate issued",
-      site: "portfolio.riga.site",
-      timestamp: "2 days ago"
+      action: "enforced 2FA credential requirement for Riga Studio Organization",
+      timestamp: "Oct 01, 00:00 GMT",
+      type: "security"
     }
   ]
 };

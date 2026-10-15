@@ -161,13 +161,13 @@ export default function PluginConfigPage({
     const sampleCss = typeof plugin.runtimeCss === 'function' ? plugin.runtimeCss(settings) : '/* No custom CSS injected */';
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-50/70 p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto bg-surface p-4 sm:p-6 lg:p-8">
             <div className="max-w-5xl mx-auto space-y-6">
                 {/* Top Breadcrumb & Navigation */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <button
                         onClick={onBack}
-                        className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-black transition-colors px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-2xs hover:shadow-xs"
+                        className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-[#2563EB] transition-colors px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs cursor-pointer"
                     >
                         <ArrowLeft className="w-3.5 h-3.5" />
                         <span>Back to Plugins Catalog</span>
@@ -175,12 +175,12 @@ export default function PluginConfigPage({
 
                     <div className="flex items-center gap-2">
                         {allSites.length > 1 && (
-                            <div className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 px-3 py-1 rounded-xl shadow-2xs">
-                                <span className="text-gray-400 font-medium">Site:</span>
+                            <div className="flex items-center gap-1.5 text-xs bg-white border border-slate-200 px-3 py-1 rounded-xl shadow-2xs">
+                                <span className="text-slate-400 font-medium">Site:</span>
                                 <select 
                                     value={site?.id} 
                                     onChange={(e) => onSelectSite && onSelectSite(e.target.value)}
-                                    className="font-bold text-gray-800 bg-transparent focus:outline-none cursor-pointer"
+                                    className="font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
                                 >
                                     {allSites.map(s => (
                                         <option key={s.id} value={s.id}>{s.name} ({s.subdomain || 'site'})</option>
@@ -192,7 +192,7 @@ export default function PluginConfigPage({
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-black hover:bg-neutral-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                         >
                             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                             <span>Save Changes</span>
@@ -201,12 +201,12 @@ export default function PluginConfigPage({
                 </div>
 
                 {/* Hero Plugin Banner */}
-                <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-slate-100/60 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-50/60 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none"></div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                         <div className="flex items-start gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0">
+                            <div className="w-14 h-14 rounded-2xl bg-[#2563EB] text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0">
                                 {plugin.category === 'seo' ? <Search className="w-7 h-7" /> :
                                  plugin.category === 'security' ? <ShieldCheck className="w-7 h-7" /> :
                                  plugin.category === 'performance' ? <Zap className="w-7 h-7" /> :
@@ -218,35 +218,35 @@ export default function PluginConfigPage({
 
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+                                    <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
                                         {plugin.name}
                                     </h1>
-                                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                                         v{plugin.version}
                                     </span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                                         {plugin.category}
                                     </span>
                                     {plugin.isCustom && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
                                             Custom Developer
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-xs text-gray-500 max-w-2xl leading-relaxed">
+                                <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
                                     {plugin.description}
                                 </p>
-                                <div className="text-[11px] text-gray-400 font-medium pt-1">
-                                    Author: <span className="text-gray-700 font-semibold">{plugin.author}</span> · Architecture: <span className="text-gray-700 font-semibold">Riga Client Edge Sandbox</span>
+                                <div className="text-[11px] text-slate-400 font-medium pt-1">
+                                    Author: <span className="text-slate-800 font-semibold">{plugin.author}</span> · Architecture: <span className="text-slate-800 font-semibold">Riga Client Edge Sandbox</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Activation Toggle Card */}
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 pt-4 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                             <div className="text-left sm:text-right">
-                                <div className="text-xs font-bold text-gray-900">Extension Status</div>
-                                <div className="text-[11px] text-gray-400">
+                                <div className="text-xs font-bold text-slate-950">Extension Status</div>
+                                <div className="text-[11px] text-slate-400">
                                     {enabled ? 'Active on production sites' : 'Disabled for this site'}
                                 </div>
                             </div>
@@ -254,7 +254,7 @@ export default function PluginConfigPage({
                             <button
                                 onClick={handleToggleEnabled}
                                 className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                    enabled ? 'bg-emerald-500' : 'bg-gray-300'
+                                    enabled ? 'bg-[#2563EB]' : 'bg-slate-200'
                                 }`}
                             >
                                 <span
@@ -279,10 +279,10 @@ export default function PluginConfigPage({
                                 <button
                                     key={t.id}
                                     onClick={() => setActiveTab(t.id)}
-                                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold whitespace-nowrap border-b-2 transition-all ${
+                                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold whitespace-nowrap border-b-2 transition-all cursor-pointer ${
                                         activeTab === t.id
-                                            ? 'border-black text-gray-900'
-                                            : 'border-transparent text-gray-400 hover:text-gray-700'
+                                            ? 'border-[#2563EB] text-[#2563EB]'
+                                            : 'border-transparent text-slate-500 hover:text-slate-900'
                                     }`}
                                 >
                                     <Icon className="w-3.5 h-3.5" />
